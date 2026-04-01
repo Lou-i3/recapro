@@ -1,0 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #16161A;
+  color: #E0DFE4;
+  font-family: 'DM Sans', 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
