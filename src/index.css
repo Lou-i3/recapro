@@ -14,3 +14,88 @@ body {
   font-family: 'DM Sans', 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.18);
+}
+
+/* Markdown panel */
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3 {
+  color: #E0DFE4;
+  margin: 20px 0 10px;
+  font-weight: 600;
+}
+.markdown-content h1 { font-size: 20px; }
+.markdown-content h2 { font-size: 17px; }
+.markdown-content h3 { font-size: 15px; }
+.markdown-content p { margin: 10px 0; line-height: 1.7; }
+.markdown-content ul, .markdown-content ol { padding-left: 20px; margin: 10px 0; }
+.markdown-content li { margin: 6px 0; line-height: 1.6; }
+.markdown-content code {
+  background: rgba(226,93,93,0.12);
+  color: #E25D5D;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+}
+.markdown-content pre {
+  background: rgba(255,255,255,0.05);
+  padding: 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin: 14px 0;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.markdown-content pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+}
+.markdown-content blockquote {
+  border-left: 3px solid rgba(78,168,222,0.35);
+  padding-left: 14px;
+  margin: 12px 0;
+  color: #A0A0A8;
+}
+.markdown-content a {
+  color: #4EA8DE;
+  text-decoration: none;
+}
+.markdown-content a:hover {
+  text-decoration: underline;
+}
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  margin: 20px 0;
+}
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 13px;
+}
+.markdown-content th {
+  background: rgba(255,255,255,0.04);
+  font-weight: 600;
+}
