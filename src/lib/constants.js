@@ -38,8 +38,14 @@ export const DEFAULT_STATUS = {
   questions: "to-ask",
 };
 
-export const TERMINAL_STATUSES = new Set([
-  "done", "answered", "closed",
+// "Completed" = counted as done in stats/progress (validated, done, answered, closed)
+export const COMPLETED_STATUSES = new Set([
+  "validated", "done", "answered", "closed",
+]);
+
+// "Hidden" = filtered out by "masquer terminés" (only closed)
+export const HIDDEN_STATUSES = new Set([
+  "closed",
 ]);
 
 export const DEFAULT_SECTIONS = ["Général", "Technique", "Budget", "Planning"];

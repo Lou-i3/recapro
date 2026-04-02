@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import EditableText from "./EditableText";
 import PriorityDot from "./PriorityDot";
 import StatusBadge from "./StatusBadge";
-import { TERMINAL_STATUSES } from "../../lib/constants";
+
 import { colors, fonts, fontSizes, spacing, radii, transitions, shadows } from "../../lib/theme";
 
 export default function ItemRow({
@@ -15,7 +15,7 @@ export default function ItemRow({
   const [editingOwner, setEditingOwner] = useState(false);
   const menuRef = useRef(null);
   const cat = categories.find(c => c.id === item.category) || categories[0];
-  const isTerminal = TERMINAL_STATUSES.has(item.status);
+  const isDimmed = item.status === 'closed';
   const hasChildren = childCount > 0;
 
   // Close menu on outside click
@@ -43,12 +43,12 @@ export default function ItemRow({
         draggable={!isChild}
         {...(isChild ? {} : dragHandlers)}
         style={{
-          background: isTerminal ? colors.surface1 : colors.surface2,
+          background: isDimmed ? colors.surface1 : colors.surface2,
           borderRadius: radii.lg,
           padding: `${spacing.sm}px ${spacing.md}px`,
           marginBottom: 2,
           marginLeft: isChild ? 24 : 0,
-          color: isTerminal ? colors.textMuted : colors.text,
+          color: isDimmed ? colors.textMuted : colors.text,
           borderLeft: `3px solid ${cat.color}`,
           transition: transitions.normal,
           cursor: isChild ? 'default' : 'grab',
@@ -78,7 +78,7 @@ export default function ItemRow({
 
           <div style={{
             flex: 1, minWidth: 0,
-            textDecoration: isTerminal ? 'line-through' : 'none',
+            textDecoration: isDimmed ? 'line-through' : 'none',
             textDecorationColor: colors.textMuted,
           }}>
             <EditableText

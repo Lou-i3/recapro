@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { CATEGORIES, TERMINAL_STATUSES, emptyItem } from "../../lib/constants";
+import { CATEGORIES, COMPLETED_STATUSES, HIDDEN_STATUSES, emptyItem } from "../../lib/constants";
 import { exportProjectJSON, importProjectJSON } from "../../lib/storage";
 import { colors, fonts, fontSizes, spacing, radii, transitions, shadows, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle } from "../../lib/theme";
 import EditableText from "./EditableText";
@@ -73,20 +73,21 @@ export default function ProjectView({ project, onSave }) {
   const toggleCollapse = (key) =>
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const isTerminal = (item) => TERMINAL_STATUSES.has(item.status);
-  const filteredItems = filterDone ? items.filter((i) => !isTerminal(i)) : items;
+  const isCompleted = (item) => COMPLETED_STATUSES.has(item.status);
+  const isHidden = (item) => HIDDEN_STATUSES.has(item.status);
+  const filteredItems = filterDone ? items.filter((i) => !isHidden(i)) : items;
 
   // Root items only (no parentId) for counting
   const rootItems = items.filter(i => !i.parentId);
   const stats = {
     total: rootItems.length,
-    done: rootItems.filter(i => isTerminal(i)).length,
-    high: rootItems.filter(i => i.priority === "high" && !isTerminal(i)).length,
+    done: rootItems.filter(i => isCompleted(i)).length,
+    high: rootItems.filter(i => i.priority === "high" && !isCompleted(i)).length,
     blocked: rootItems.filter(i => i.status === "blocked").length,
   };
   const catStats = CATEGORIES.map(cat => {
     const catItems = rootItems.filter(i => i.category === cat.id);
-    const done = catItems.filter(i => isTerminal(i)).length;
+    const done = catItems.filter(i => isCompleted(i)).length;
     return { ...cat, total: catItems.length, done, rate: catItems.length > 0 ? Math.round((done / catItems.length) * 100) : 0 };
   });
   const overallRate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
@@ -95,7 +96,7 @@ export default function ProjectView({ project, onSave }) {
   const getChildren = (parentId) => filteredItems.filter(i => i.parentId === parentId);
   const getRootItems = (list) => list.filter(i => !i.parentId);
   const getChildCount = (parentId) => items.filter(i => i.parentId === parentId).length;
-  const getDoneChildCount = (parentId) => items.filter(i => i.parentId === parentId && isTerminal(i)).length;
+  const getDoneChildCount = (parentId) => items.filter(i => i.parentId === parentId && isCompleted(i)).length;
 
   // ─── Drag & drop ───
   const handleDragStart = (e, item) => {

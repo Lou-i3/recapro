@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAllProjects } from '../hooks/useAllProjects';
-import { CATEGORIES, STATUS_BY_CATEGORY, TERMINAL_STATUSES } from '../lib/constants';
+import { CATEGORIES, STATUS_BY_CATEGORY, COMPLETED_STATUSES } from '../lib/constants';
 import { colors, fonts, fontSizes, spacing, radii, transitions } from '../lib/theme';
 
 export default function TasksByProjectPage() {
@@ -55,7 +55,7 @@ export default function TasksByProjectPage() {
                   <p style={{ fontSize: fontSizes.sm, color: colors.textMuted, paddingLeft: spacing.sm }}>Aucun élément</p>
                 ) : items.map(item => {
                   const cat = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[0];
-                  const isTerminal = TERMINAL_STATUSES.has(item.status);
+                  const isTerminal = COMPLETED_STATUSES.has(item.status);
                   const statusDef = (STATUS_BY_CATEGORY[item.category] || []).find(s => s.id === item.status);
                   return (
                     <div key={item.id} style={{

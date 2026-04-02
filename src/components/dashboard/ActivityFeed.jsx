@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { CATEGORIES, STATUS_BY_CATEGORY, TERMINAL_STATUSES } from '../../lib/constants';
+import { CATEGORIES, STATUS_BY_CATEGORY, COMPLETED_STATUSES } from '../../lib/constants';
 import { colors, fonts, fontSizes, spacing, radii, transitions } from '../../lib/theme';
 
 export default function ActivityFeed({ projects }) {
@@ -23,7 +23,7 @@ export default function ActivityFeed({ projects }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {recent.map(item => {
         const cat = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[0];
-        const isTerminal = TERMINAL_STATUSES.has(item.status);
+        const isTerminal = COMPLETED_STATUSES.has(item.status);
         const statusDef = (STATUS_BY_CATEGORY[item.category] || []).find(s => s.id === item.status);
         const date = item.createdAt
           ? new Date(item.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })

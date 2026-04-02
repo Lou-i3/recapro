@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAllProjects } from '../hooks/useAllProjects';
-import { CATEGORIES, PRIORITY_LEVELS, STATUS_BY_CATEGORY, TERMINAL_STATUSES } from '../lib/constants';
+import { CATEGORIES, PRIORITY_LEVELS, STATUS_BY_CATEGORY, COMPLETED_STATUSES } from '../lib/constants';
 import { colors, fonts, fontSizes, spacing, radii, transitions } from '../lib/theme';
 
 export default function TasksInProgressPage() {
@@ -12,7 +12,7 @@ export default function TasksInProgressPage() {
   const inProgress = projects
     .flatMap(p =>
       (p.items || [])
-        .filter(i => !i.parentId && !TERMINAL_STATUSES.has(i.status))
+        .filter(i => !i.parentId && !COMPLETED_STATUSES.has(i.status))
         .map(i => ({ ...i, _projectSlug: p.slug, _projectName: p.projectName }))
     )
     .sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));

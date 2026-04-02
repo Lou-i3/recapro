@@ -1,12 +1,12 @@
-import { TERMINAL_STATUSES } from '../../lib/constants';
+import { COMPLETED_STATUSES } from '../../lib/constants';
 import { colors, fonts, fontSizes, spacing, radii, labelStyle, cardStyle } from '../../lib/theme';
 
 export default function StatsSection({ projects }) {
   const allItems = projects.flatMap(p => p.items || []);
   const rootItems = allItems.filter(i => !i.parentId);
   const total = rootItems.length;
-  const done = rootItems.filter(i => TERMINAL_STATUSES.has(i.status)).length;
-  const high = rootItems.filter(i => i.priority === 'high' && !TERMINAL_STATUSES.has(i.status)).length;
+  const done = rootItems.filter(i => COMPLETED_STATUSES.has(i.status)).length;
+  const high = rootItems.filter(i => i.priority === 'high' && !COMPLETED_STATUSES.has(i.status)).length;
   const rate = total > 0 ? Math.round((done / total) * 100) : 0;
 
   const statCard = (label, value, color = colors.text) => (
@@ -31,7 +31,7 @@ export default function StatsSection({ projects }) {
           <div style={{ ...labelStyle, marginBottom: spacing.md }}>Par projet</div>
           {projects.map(p => {
             const pItems = (p.items || []).filter(i => !i.parentId);
-            const pDone = pItems.filter(i => TERMINAL_STATUSES.has(i.status)).length;
+            const pDone = pItems.filter(i => COMPLETED_STATUSES.has(i.status)).length;
             const pTotal = pItems.length;
             const pRate = pTotal > 0 ? Math.round((pDone / pTotal) * 100) : 0;
             return (
