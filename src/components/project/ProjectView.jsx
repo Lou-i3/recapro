@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { CATEGORIES, COMPLETED_STATUSES, HIDDEN_STATUSES, emptyItem } from "../../lib/constants";
 import { exportProjectJSON, importProjectJSON } from "../../lib/storage";
-import { colors, fonts, fontSizes, spacing, radii, transitions, shadows, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle } from "../../lib/theme";
+import { colors, categoryBg, fonts, fontSizes, spacing, radii, transitions, shadows, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle } from "../../lib/theme";
 import EditableText from "./EditableText";
 import ItemRow from "./ItemRow";
 
@@ -9,7 +9,7 @@ export default function ProjectView({ project, onSave }) {
   const { projectName, sections, items } = project;
 
   const [viewMode, setViewMode] = useState("bySection");
-  const [filterDone, setFilterDone] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
   const [newSection, setNewSection] = useState("");
   const [addingSectionOpen, setAddingSectionOpen] = useState(false);
   const [dragItem, setDragItem] = useState(null);
@@ -75,7 +75,7 @@ export default function ProjectView({ project, onSave }) {
 
   const isCompleted = (item) => COMPLETED_STATUSES.has(item.status);
   const isHidden = (item) => HIDDEN_STATUSES.has(item.status);
-  const filteredItems = filterDone ? items.filter((i) => !isHidden(i)) : items;
+  const filteredItems = showHidden ? items : items.filter((i) => !isHidden(i));
 
   // Root items only (no parentId) for counting
   const rootItems = items.filter(i => !i.parentId);
@@ -201,7 +201,7 @@ export default function ProjectView({ project, onSave }) {
               borderBottom: `1px solid ${colors.borderLight}`, paddingBottom: spacing.sm,
               cursor: "pointer", userSelect: "none",
               position: "sticky", top: 0, zIndex: 5,
-              background: colors.bg, paddingTop: spacing.sm,
+              background: colors.bgContent, paddingTop: spacing.sm,
             }}
           >
             <span style={{ fontWeight: 600, fontSize: fontSizes.lg, letterSpacing: "0.01em" }}>
@@ -237,11 +237,17 @@ export default function ProjectView({ project, onSave }) {
               );
             }
             return (
-              <div key={cat.id} style={{ marginBottom: spacing.md }}>
+              <div key={cat.id} style={{
+                marginBottom: spacing.md,
+                background: categoryBg[cat.id] || 'transparent',
+                borderRadius: radii.lg,
+                padding: `${spacing.sm}px ${spacing.md}px`,
+                borderLeft: `2px solid ${cat.color}22`,
+              }}>
                 <div
                   onClick={() => toggleCollapse(subKey)}
                   style={{
-                    fontSize: fontSizes.sm, color: colors.textSecondary, marginBottom: spacing.xs, paddingLeft: spacing.xs,
+                    fontSize: fontSizes.sm, color: colors.textSecondary, marginBottom: spacing.xs,
                     cursor: 'pointer', userSelect: 'none',
                     display: 'flex', alignItems: 'center', gap: spacing.xs,
                   }}
@@ -275,7 +281,7 @@ export default function ProjectView({ project, onSave }) {
               borderBottom: `2px solid ${cat.color}33`, paddingBottom: spacing.sm,
               cursor: "pointer", userSelect: "none",
               position: "sticky", top: 0, zIndex: 5,
-              background: colors.bg, paddingTop: spacing.sm,
+              background: colors.bgContent, paddingTop: spacing.sm,
             }}
           >
             <span style={{ fontSize: 18 }}>{cat.icon}</span>
@@ -352,9 +358,9 @@ export default function ProjectView({ project, onSave }) {
         }}>
           {/* Overall progress */}
           <div style={{
-            background: colors.surface2, borderRadius: radii.lg,
+            background: colors.surfaceStats, borderRadius: radii.lg,
             padding: `${spacing.md}px ${spacing.lg}px`,
-            border: `1px solid ${colors.borderLight}`,
+            border: `1px solid ${colors.green}18`,
           }}>
             <div style={{ ...labelStyle, fontSize: fontSizes.xs, marginBottom: spacing.sm }}>Progress</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
@@ -380,11 +386,10 @@ export default function ProjectView({ project, onSave }) {
           {/* Per-category mini cards */}
           {catStats.map(cat => (
             <div key={cat.id} style={{
-              background: colors.surface2, borderRadius: radii.lg,
+              background: categoryBg[cat.id] || colors.surface2, borderRadius: radii.lg,
               padding: `${spacing.md}px ${spacing.lg}px`,
+              border: `1px solid ${cat.color}18`,
               borderLeft: `3px solid ${cat.color}`,
-              border: `1px solid ${colors.borderLight}`,
-              borderLeftColor: cat.color,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: spacing.sm }}>
                 <span style={{ fontSize: 12 }}>{cat.icon}</span>
@@ -570,18 +575,18 @@ export default function ProjectView({ project, onSave }) {
 
         {/* Filter done toggle */}
         <button
-          onClick={() => setFilterDone(!filterDone)}
+          onClick={() => setShowHidden(!showHidden)}
           style={{
             padding: `3px ${spacing.md}px`,
             fontSize: fontSizes.sm, fontFamily: fonts.body,
-            background: filterDone ? colors.blueBg : 'transparent',
-            color: filterDone ? colors.blue : colors.textMuted,
-            border: `1px solid ${filterDone ? colors.blueBorder : colors.border}`,
+            background: showHidden ? colors.blueBg : 'transparent',
+            color: showHidden ? colors.blue : colors.textMuted,
+            border: `1px solid ${showHidden ? colors.blueBorder : colors.border}`,
             borderRadius: radii.md, cursor: 'pointer',
             transition: transitions.fast,
           }}
         >
-          {filterDone ? 'Terminés masqués' : 'Masquer terminés'}
+          {showHidden ? 'Showing closed' : 'Show closed'}
         </button>
       </div>
 

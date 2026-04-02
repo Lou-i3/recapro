@@ -55,6 +55,7 @@ export default function MarkdownPanel({ markdown, onChange, width, onResize }) {
       flexDirection: 'column',
       height: '100%',
       position: 'relative',
+      background: colors.surfaceNotes,
     }}>
       {/* Resize handle */}
       <div

@@ -1,15 +1,16 @@
 // ─── Design Tokens ───
 
 export const colors = {
-  // Backgrounds
-  bg: '#16161A',
-  bgSidebar: '#1A1A20',
-  bgSurface: '#1E1E24',
+  // Backgrounds — GitHub/Teams inspired neutral
+  bg: '#1C1C1E',
+  bgContent: '#222226',
+  bgSidebar: '#161618',
+  bgSurface: '#2C2C2E',
 
   // Text
-  text: '#E0DFE4',
-  textSecondary: '#A0A0A8',
-  textMuted: '#6B6B76',
+  text: '#E6E6EB',
+  textSecondary: '#9898A4',
+  textMuted: '#6E6E80',
 
   // Accent
   blue: '#4EA8DE',
@@ -34,9 +35,22 @@ export const colors = {
   borderInput: 'rgba(255,255,255,0.14)',
   borderDashed: 'rgba(255,255,255,0.12)',
 
+  // Tinted surfaces (subtle category tints for visual variety)
+  surfaceDecisions: 'rgba(232,185,49,0.04)',
+  surfaceActions: 'rgba(78,168,222,0.04)',
+  surfaceQuestions: 'rgba(199,125,186,0.04)',
+  surfaceNotes: 'rgba(78,168,222,0.02)',
+  surfaceStats: 'rgba(107,192,107,0.03)',
+
   // States
   dimmed: 'rgba(255,255,255,0.35)',
   placeholder: 'rgba(255,255,255,0.3)',
+};
+
+export const categoryBg = {
+  decisions: 'rgba(232,185,49,0.04)',
+  actions: 'rgba(78,168,222,0.04)',
+  questions: 'rgba(199,125,186,0.04)',
 };
 
 export const fonts = {

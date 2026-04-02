@@ -18,7 +18,7 @@ export default function TasksInProgressPage() {
     .sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
 
   return (
-    <div style={{ fontFamily: fonts.body, maxWidth: 900, padding: spacing.xxl }}>
+    <div style={{ fontFamily: fonts.body, maxWidth: 900, padding: spacing.xxl, background: colors.bgContent, minHeight: '100%' }}>
       <h2 style={{ color: colors.text, fontWeight: 600, marginBottom: spacing.sm, fontSize: fontSizes.xl }}>
         Tâches en cours
       </h2>

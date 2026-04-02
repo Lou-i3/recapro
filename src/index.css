@@ -9,8 +9,8 @@
 }
 
 body {
-  background: #16161A;
-  color: #E0DFE4;
+  background: #1C1C1E;
+  color: #E6E6EB;
   font-family: 'DM Sans', 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -34,7 +34,7 @@ body {
 .markdown-content h1,
 .markdown-content h2,
 .markdown-content h3 {
-  color: #E0DFE4;
+  color: #E6E6EB;
   margin: 20px 0 10px;
   font-weight: 600;
 }

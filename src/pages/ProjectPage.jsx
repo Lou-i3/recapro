@@ -21,7 +21,7 @@ export default function ProjectPage() {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      <div style={{ flex: 1, overflow: 'auto', padding: spacing.xxl, minWidth: 0 }}>
+      <div style={{ flex: 1, overflow: 'auto', padding: spacing.xxl, minWidth: 0, background: colors.bgContent }}>
         <ProjectView project={data} onSave={save} />
       </div>
 

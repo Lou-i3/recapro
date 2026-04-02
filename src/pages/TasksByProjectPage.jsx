@@ -20,7 +20,7 @@ export default function TasksByProjectPage() {
   }
 
   return (
-    <div style={{ fontFamily: fonts.body, maxWidth: 900, padding: spacing.xxl }}>
+    <div style={{ fontFamily: fonts.body, maxWidth: 900, padding: spacing.xxl, background: colors.bgContent, minHeight: '100%' }}>
       <h2 style={{ color: colors.text, fontWeight: 600, marginBottom: spacing.xl, fontSize: fontSizes.xl }}>
         Tâches par projet
       </h2>
