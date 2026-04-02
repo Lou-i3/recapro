@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { colors, fonts, fontSizes, spacing, radii, transitions, buttonStyle, buttonPrimaryStyle, labelStyle } from '../../lib/theme';
 
-export default function MarkdownPanel({ markdown, onChange }) {
+export default function MarkdownPanel({ markdown, onChange, width, onResize }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(markdown || '');
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
 
   const handleToggle = () => {
     if (editing) {
@@ -16,15 +19,59 @@ export default function MarkdownPanel({ markdown, onChange }) {
     setEditing(!editing);
   };
 
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault();
+    dragging.current = true;
+    startX.current = e.clientX;
+    startWidth.current = width;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handleMouseMove = (e) => {
+      if (!dragging.current) return;
+      const delta = startX.current - e.clientX;
+      const newWidth = Math.max(250, Math.min(800, startWidth.current + delta));
+      onResize(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      dragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  }, [width, onResize]);
+
   return (
     <div style={{
-      width: '40%',
-      minWidth: 280,
+      width,
+      minWidth: 0,
       borderLeft: `1px solid ${colors.borderLight}`,
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
+      position: 'relative',
     }}>
+      {/* Resize handle */}
+      <div
+        onMouseDown={handleMouseDown}
+        style={{
+          position: 'absolute',
+          left: -3,
+          top: 0,
+          bottom: 0,
+          width: 6,
+          cursor: 'col-resize',
+          zIndex: 10,
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = colors.blue + '33'}
+        onMouseLeave={e => { if (!dragging.current) e.currentTarget.style.background = 'transparent'; }}
+      />
+
       <div style={{
         display: 'flex',
         alignItems: 'center',
