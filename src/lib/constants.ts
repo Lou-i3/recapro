@@ -45,7 +45,7 @@ export const COMPLETED_STATUSES = new Set<string>([
 ]);
 
 export const HIDDEN_STATUSES = new Set<string>([
-  "closed",
+  "closed", "done",
 ]);
 
 export const DEFAULT_SECTIONS = ["Général", "Technique", "Budget", "Planning"];
