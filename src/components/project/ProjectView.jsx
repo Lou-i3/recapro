@@ -190,21 +190,25 @@ export default function ProjectView({ project, onSave }) {
     sections.map((section) => {
       const sectionItems = filteredItems.filter((i) => i.section === section);
       const collapsed = collapsedSections[section];
+      const count = getRootItems(sectionItems).length;
       return (
         <div key={section} style={{ marginBottom: spacing.xxl }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm,
-            borderBottom: `1px solid ${colors.borderLight}`, paddingBottom: spacing.sm,
-          }}>
-            <span onClick={() => toggleCollapse(section)}
-              style={{ cursor: "pointer", fontSize: fontSizes.sm, color: colors.textMuted, userSelect: "none" }}>
-              {collapsed ? "▶" : "▼"}
-            </span>
+          <div
+            onClick={() => toggleCollapse(section)}
+            style={{
+              display: "flex", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm,
+              borderBottom: `1px solid ${colors.borderLight}`, paddingBottom: spacing.sm,
+              cursor: "pointer", userSelect: "none",
+            }}
+          >
             <span style={{ fontWeight: 600, fontSize: fontSizes.lg, letterSpacing: "0.01em" }}>
               {section}
             </span>
-            <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginLeft: spacing.xs }}>
-              {getRootItems(sectionItems).length} élément{getRootItems(sectionItems).length !== 1 ? "s" : ""}
+            <span style={{ fontSize: fontSizes.sm, color: colors.textMuted }}>
+              {count} élément{count !== 1 ? "s" : ""}
+            </span>
+            <span style={{ marginLeft: 'auto', fontSize: fontSizes.xs, color: colors.textMuted, transition: transitions.fast }}>
+              {collapsed ? "▶" : "▼"}
             </span>
           </div>
           {!collapsed && CATEGORIES.map((cat) => {
@@ -242,20 +246,25 @@ export default function ProjectView({ project, onSave }) {
     CATEGORIES.map((cat) => {
       const catItems = filteredItems.filter((i) => i.category === cat.id);
       const collapsed = collapsedSections[cat.id];
+      const count = getRootItems(catItems).length;
       return (
         <div key={cat.id} style={{ marginBottom: spacing.xxl }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm,
-            borderBottom: `2px solid ${cat.color}33`, paddingBottom: spacing.sm,
-          }}>
-            <span onClick={() => toggleCollapse(cat.id)} style={{ cursor: "pointer", fontSize: fontSizes.sm, color: colors.textMuted }}>
-              {collapsed ? "▶" : "▼"}
-            </span>
+          <div
+            onClick={() => toggleCollapse(cat.id)}
+            style={{
+              display: "flex", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm,
+              borderBottom: `2px solid ${cat.color}33`, paddingBottom: spacing.sm,
+              cursor: "pointer", userSelect: "none",
+            }}
+          >
             <span style={{ fontSize: 18 }}>{cat.icon}</span>
             <span style={{ fontWeight: 700, fontSize: fontSizes.lg, color: cat.color }}>
               {cat.label}
             </span>
-            <span style={{ fontSize: fontSizes.sm, color: colors.textMuted }}>{getRootItems(catItems).length}</span>
+            <span style={{ fontSize: fontSizes.sm, color: colors.textMuted }}>{count}</span>
+            <span style={{ marginLeft: 'auto', fontSize: fontSizes.xs, color: colors.textMuted, transition: transitions.fast }}>
+              {collapsed ? "▶" : "▼"}
+            </span>
           </div>
           {!collapsed && sections.map((section) => {
             const sItems = catItems.filter((i) => i.section === section);
@@ -288,32 +297,16 @@ export default function ProjectView({ project, onSave }) {
     }}>
       {/* Header */}
       <div style={{ marginBottom: spacing.xxl }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-          <div>
-            <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 2 }}>
-              <EditableText
-                value={projectName}
-                onChange={setProjectName}
-                placeholder="Nom du projet"
-              />
-            </div>
-            <div style={{ ...labelStyle, fontSize: fontSizes.xs }}>
-              {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-            </div>
+        <div style={{ marginBottom: spacing.lg }}>
+          <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 2 }}>
+            <EditableText
+              value={projectName}
+              onChange={setProjectName}
+              placeholder="Nom du projet"
+            />
           </div>
-          <div style={{ display: "flex", gap: spacing.sm, alignItems: "center", flexShrink: 0 }}>
-            <button onClick={() => setViewMode(viewMode === "bySection" ? "byCategory" : "bySection")}
-              style={buttonStyle}>
-              {viewMode === "bySection" ? "Par section" : "Par catégorie"}
-            </button>
-            <label style={{
-              fontSize: fontSizes.sm, color: colors.textSecondary,
-              display: "flex", alignItems: "center", gap: spacing.xs, cursor: "pointer",
-            }}>
-              <input type="checkbox" checked={filterDone} onChange={() => setFilterDone(!filterDone)}
-                style={{ accentColor: colors.blue }} />
-              Masquer terminés
-            </label>
+          <div style={{ ...labelStyle, fontSize: fontSizes.xs }}>
+            {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
           </div>
         </div>
 
@@ -417,9 +410,8 @@ export default function ProjectView({ project, onSave }) {
         </div>
       </div>
 
-      {/* Section manager */}
+      {/* Toolbar: sections + view controls */}
       <div style={{ display: "flex", gap: spacing.sm, marginBottom: spacing.lg, flexWrap: "wrap", alignItems: "center" }}>
-        <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginRight: spacing.xs }}>Sections :</span>
         {sections.map((s) => (
           <span key={s} style={{ position: 'relative', display: 'inline-flex' }}>
             {renamingSection === s ? (
@@ -516,6 +508,46 @@ export default function ProjectView({ project, onSave }) {
             ...buttonDashedStyle, width: 'auto', padding: "2px 10px", fontSize: fontSizes.sm,
           }}>+ Section</button>
         )}
+
+        {/* Spacer */}
+        <span style={{ flex: 1 }} />
+
+        {/* View mode toggle */}
+        <div style={{
+          display: 'inline-flex', borderRadius: radii.md, overflow: 'hidden',
+          border: `1px solid ${colors.border}`,
+        }}>
+          {[{ id: 'bySection', label: 'Sections' }, { id: 'byCategory', label: 'Catégories' }].map(v => (
+            <button
+              key={v.id}
+              onClick={() => setViewMode(v.id)}
+              style={{
+                padding: `3px ${spacing.md}px`,
+                fontSize: fontSizes.sm, fontFamily: fonts.body,
+                background: viewMode === v.id ? colors.surface3 : 'transparent',
+                color: viewMode === v.id ? colors.text : colors.textMuted,
+                border: 'none', cursor: 'pointer',
+                transition: transitions.fast,
+              }}
+            >{v.label}</button>
+          ))}
+        </div>
+
+        {/* Filter done toggle */}
+        <button
+          onClick={() => setFilterDone(!filterDone)}
+          style={{
+            padding: `3px ${spacing.md}px`,
+            fontSize: fontSizes.sm, fontFamily: fonts.body,
+            background: filterDone ? colors.blueBg : 'transparent',
+            color: filterDone ? colors.blue : colors.textMuted,
+            border: `1px solid ${filterDone ? colors.blueBorder : colors.border}`,
+            borderRadius: radii.md, cursor: 'pointer',
+            transition: transitions.fast,
+          }}
+        >
+          {filterDone ? 'Terminés masqués' : 'Masquer terminés'}
+        </button>
       </div>
 
       {/* Main content */}
