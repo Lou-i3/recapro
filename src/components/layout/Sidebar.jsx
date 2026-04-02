@@ -42,7 +42,7 @@ const sectionTitle = {
   userSelect: 'none',
 };
 
-export default function Sidebar({ projects, onCreateProject, onDeleteProject }) {
+export default function Sidebar({ projects, onCreateProject, onDeleteProject, onCollapse }) {
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [menuOpen, setMenuOpen] = useState(null);
@@ -185,6 +185,29 @@ export default function Sidebar({ projects, onCreateProject, onDeleteProject }) 
       )}
 
       <div style={{ flex: 1 }} />
+
+      {/* Collapse sidebar */}
+      <button
+        onClick={onCollapse}
+        style={{
+          display: 'flex', alignItems: 'center', gap: spacing.sm,
+          padding: `${spacing.md}px ${spacing.lg}px`,
+          background: 'none', border: 'none',
+          borderTop: `1px solid ${colors.borderLight}`,
+          color: colors.textMuted,
+          cursor: 'pointer',
+          fontSize: fontSizes.sm,
+          fontFamily: fonts.body,
+          transition: transitions.fast,
+          width: '100%',
+          textAlign: 'left',
+        }}
+        onMouseEnter={e => e.currentTarget.style.color = colors.text}
+        onMouseLeave={e => e.currentTarget.style.color = colors.textMuted}
+      >
+        <span style={{ fontSize: fontSizes.md }}>◀</span>
+        Réduire
+      </button>
     </nav>
   );
 }

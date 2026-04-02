@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { colors, radii, transitions } from "../../lib/theme";
 
 export default function EditableText({ value, onChange, placeholder, className, multiline }) {
@@ -14,6 +16,18 @@ export default function EditableText({ value, onChange, placeholder, className, 
   };
 
   if (!editing) {
+    if (multiline && value) {
+      return (
+        <div
+          className={`${className || ''} markdown-content`}
+          onClick={() => setEditing(true)}
+          style={{ cursor: "text", minWidth: 40, fontSize: 'inherit', lineHeight: 1.6 }}
+          title="Cliquer pour modifier"
+        >
+          <Markdown remarkPlugins={[remarkGfm]}>{value}</Markdown>
+        </div>
+      );
+    }
     return (
       <span
         className={className}

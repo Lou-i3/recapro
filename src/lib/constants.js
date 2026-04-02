@@ -1,13 +1,13 @@
 export const CATEGORIES = [
-  { id: "decisions", label: "Décisions", icon: "⚖️", color: "#E8B931" },
-  { id: "actions", label: "Actions", icon: "⚡", color: "#4EA8DE" },
-  { id: "questions", label: "Questions", icon: "❓", color: "#C77DBA" },
+  { id: "decisions", label: "Décisions", icon: "🎯", color: "#E8B931" },
+  { id: "actions", label: "Actions", icon: "🔧", color: "#4EA8DE" },
+  { id: "questions", label: "Questions", icon: "💬", color: "#C77DBA" },
 ];
 
 export const PRIORITY_LEVELS = [
-  { id: "high", label: "Haute", dot: "#E25D5D" },
-  { id: "medium", label: "Moyenne", dot: "#E8B931" },
-  { id: "low", label: "Basse", dot: "#6BC06B" },
+  { id: "high", label: "Haute", dot: "#E25D5D", icon: "▲" },
+  { id: "medium", label: "Moyenne", dot: "#E8B931", icon: "◆" },
+  { id: "low", label: "Basse", dot: "#6BC06B", icon: "▽" },
 ];
 
 export const STATUS_BY_CATEGORY = {

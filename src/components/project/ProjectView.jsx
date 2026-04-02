@@ -200,6 +200,8 @@ export default function ProjectView({ project, onSave }) {
               display: "flex", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm,
               borderBottom: `1px solid ${colors.borderLight}`, paddingBottom: spacing.sm,
               cursor: "pointer", userSelect: "none",
+              position: "sticky", top: 0, zIndex: 5,
+              background: colors.bg, paddingTop: spacing.sm,
             }}
           >
             <span style={{ fontWeight: 600, fontSize: fontSizes.lg, letterSpacing: "0.01em" }}>
@@ -214,13 +216,18 @@ export default function ProjectView({ project, onSave }) {
           </div>
           {!collapsed && CATEGORIES.map((cat) => {
             const catItems = sectionItems.filter((i) => i.category === cat.id);
-            if (getRootItems(catItems).length === 0 && catItems.length === 0) {
+            const subKey = `${section}:${cat.id}`;
+            const subCollapsed = collapsedSections[subKey];
+            const subCount = getRootItems(catItems).length;
+            if (subCount === 0 && catItems.length === 0) {
               return (
                 <div key={cat.id} style={{ marginBottom: spacing.sm }}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, cat.id, section)}
                 >
-                  <div style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginBottom: 2, paddingLeft: spacing.xs }}>
+                  <div
+                    style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginBottom: 2, paddingLeft: spacing.xs, cursor: 'default' }}
+                  >
                     {cat.icon} {cat.label}
                   </div>
                   <button onClick={() => addItem(cat.id, section)} style={{
@@ -231,10 +238,21 @@ export default function ProjectView({ project, onSave }) {
             }
             return (
               <div key={cat.id} style={{ marginBottom: spacing.md }}>
-                <div style={{ fontSize: fontSizes.sm, color: colors.textSecondary, marginBottom: spacing.xs, paddingLeft: spacing.xs }}>
+                <div
+                  onClick={() => toggleCollapse(subKey)}
+                  style={{
+                    fontSize: fontSizes.sm, color: colors.textSecondary, marginBottom: spacing.xs, paddingLeft: spacing.xs,
+                    cursor: 'pointer', userSelect: 'none',
+                    display: 'flex', alignItems: 'center', gap: spacing.xs,
+                  }}
+                >
                   {cat.icon} {cat.label}
+                  <span style={{ color: colors.textMuted, fontSize: fontSizes.xs }}>{subCount}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: fontSizes.xs, color: colors.textMuted }}>
+                    {subCollapsed ? '▶' : '▼'}
+                  </span>
                 </div>
-                {renderItems(catItems, section, cat.id)}
+                {!subCollapsed && renderItems(catItems, section, cat.id)}
               </div>
             );
           })}
@@ -256,6 +274,8 @@ export default function ProjectView({ project, onSave }) {
               display: "flex", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm,
               borderBottom: `2px solid ${cat.color}33`, paddingBottom: spacing.sm,
               cursor: "pointer", userSelect: "none",
+              position: "sticky", top: 0, zIndex: 5,
+              background: colors.bg, paddingTop: spacing.sm,
             }}
           >
             <span style={{ fontSize: 18 }}>{cat.icon}</span>
@@ -269,19 +289,33 @@ export default function ProjectView({ project, onSave }) {
           </div>
           {!collapsed && sections.map((section) => {
             const sItems = catItems.filter((i) => i.section === section);
+            const subKey = `${cat.id}:${section}`;
+            const subCollapsed = collapsedSections[subKey];
+            const subCount = getRootItems(sItems).length;
             return (
               <div key={section} style={{ marginBottom: spacing.sm }}
                 onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, cat.id, section)}
               >
-                <div style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginBottom: 2, paddingLeft: spacing.xs }}>
+                <div
+                  onClick={() => toggleCollapse(subKey)}
+                  style={{
+                    fontSize: fontSizes.sm, color: colors.textMuted, marginBottom: 2, paddingLeft: spacing.xs,
+                    cursor: 'pointer', userSelect: 'none',
+                    display: 'flex', alignItems: 'center', gap: spacing.xs,
+                  }}
+                >
                   📁 {section}
+                  <span style={{ fontSize: fontSizes.xs }}>{subCount}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: fontSizes.xs }}>
+                    {subCollapsed ? '▶' : '▼'}
+                  </span>
                 </div>
-                {getRootItems(sItems).length > 0 ? renderItems(sItems, section, cat.id) : (
+                {!subCollapsed && (getRootItems(sItems).length > 0 ? renderItems(sItems, section, cat.id) : (
                   <button onClick={() => addItem(cat.id, section)} style={{
                     ...buttonDashedStyle, padding: "3px 10px", fontSize: fontSizes.sm, borderColor: colors.borderLight,
                   }}>+</button>
-                )}
+                ))}
               </div>
             );
           })}

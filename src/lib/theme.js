@@ -40,7 +40,7 @@ export const colors = {
 };
 
 export const fonts = {
-  body: "'DM Sans', sans-serif",
+  body: "Lato, sans-serif",
   mono: "'Space Mono', monospace",
 };
 

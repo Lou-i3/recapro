@@ -1,9 +1,8 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import Header from './Header';
 import { useProjects } from '../../hooks/useProjects';
 import { createContext, useState } from 'react';
-import { colors, transitions } from '../../lib/theme';
+import { colors, spacing, radii, transitions, fonts, fontSizes } from '../../lib/theme';
 
 export const ProjectsContext = createContext({ projects: [], refresh: () => {} });
 export const LayoutContext = createContext({ sidebarOpen: true, toggleSidebar: () => {} });
@@ -24,10 +23,39 @@ export default function Layout() {
             overflow: 'hidden',
             transition: 'width 0.2s ease, min-width 0.2s ease',
           }}>
-            <Sidebar projects={projects} onCreateProject={createProject} onDeleteProject={removeProject} />
+            <Sidebar
+              projects={projects}
+              onCreateProject={createProject}
+              onDeleteProject={removeProject}
+              onCollapse={toggleSidebar}
+            />
           </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <Header />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+            {/* Expand sidebar button when collapsed */}
+            {!sidebarOpen && (
+              <button
+                onClick={toggleSidebar}
+                title="Afficher la sidebar"
+                style={{
+                  position: 'absolute', top: spacing.md, left: spacing.md,
+                  zIndex: 10,
+                  background: colors.surface3,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: radii.md,
+                  color: colors.textMuted,
+                  cursor: 'pointer',
+                  padding: `${spacing.xs + 2}px ${spacing.sm}px`,
+                  fontSize: fontSizes.md,
+                  fontFamily: fonts.mono,
+                  transition: transitions.fast,
+                  display: 'flex', alignItems: 'center', gap: spacing.xs,
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = colors.text}
+                onMouseLeave={e => e.currentTarget.style.color = colors.textMuted}
+              >
+                ☰
+              </button>
+            )}
             <main style={{ flex: 1, overflow: 'auto' }}>
               <Outlet />
             </main>
