@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import EditableText from "./EditableText";
 import PriorityDot from "./PriorityDot";
 import StatusBadge from "./StatusBadge";
 import { TERMINAL_STATUSES } from "../../lib/constants";
-import { colors, fonts, fontSizes, spacing, radii, transitions } from "../../lib/theme";
+import { colors, fonts, fontSizes, spacing, radii, transitions, shadows } from "../../lib/theme";
 
 export default function ItemRow({
   item, onUpdate, onDelete, sections, categories, dragHandlers,
@@ -11,16 +11,34 @@ export default function ItemRow({
 }) {
   const [expanded, setExpanded] = useState(false);
   const [childrenOpen, setChildrenOpen] = useState(true);
-  const [hovered, setHovered] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editingOwner, setEditingOwner] = useState(false);
+  const menuRef = useRef(null);
   const cat = categories.find(c => c.id === item.category) || categories[0];
   const isTerminal = TERMINAL_STATUSES.has(item.status);
   const hasChildren = childCount > 0;
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handle = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [menuOpen]);
+
+  const menuItemStyle = {
+    display: 'flex', alignItems: 'center', gap: 8,
+    width: '100%', padding: `${spacing.xs + 2}px ${spacing.md}px`,
+    background: 'none', border: 'none', borderRadius: radii.sm,
+    color: colors.textSecondary, cursor: 'pointer',
+    fontSize: fontSizes.sm, fontFamily: fonts.body,
+    textAlign: 'left', transition: transitions.fast,
+  };
+
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
+    <div>
       <div
         draggable={!isChild}
         {...(isChild ? {} : dragHandlers)}
@@ -81,14 +99,45 @@ export default function ItemRow({
             </span>
           )}
 
-          <span style={{ display: "flex", alignItems: "center", gap: spacing.xs + 2, flexShrink: 0 }}>
-            <span style={{ fontSize: fontSizes.sm, color: colors.textSecondary, maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              <EditableText
-                value={item.owner}
-                onChange={(o) => onUpdate({ owner: o })}
-                placeholder="@"
-              />
+          {/* Owner display (read-only, only if filled) */}
+          {item.owner && !editingOwner && (
+            <span
+              onClick={() => setEditingOwner(true)}
+              style={{
+                fontSize: fontSizes.sm, color: colors.blue,
+                cursor: 'pointer', flexShrink: 0,
+                maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+              title="Modifier l'owner"
+            >
+              @{item.owner}
             </span>
+          )}
+
+          {/* Owner inline edit */}
+          {editingOwner && (
+            <input
+              autoFocus
+              defaultValue={item.owner}
+              onBlur={(e) => {
+                onUpdate({ owner: e.target.value.trim() });
+                setEditingOwner(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') { onUpdate({ owner: e.target.value.trim() }); setEditingOwner(false); }
+                if (e.key === 'Escape') setEditingOwner(false);
+              }}
+              placeholder="Owner…"
+              style={{
+                fontSize: fontSizes.sm, color: colors.text,
+                background: colors.surface3, border: `1px solid ${colors.borderInput}`,
+                borderRadius: radii.sm, padding: '2px 6px',
+                width: 90, outline: 'none', fontFamily: fonts.body,
+              }}
+            />
+          )}
+
+          <span style={{ display: "flex", alignItems: "center", gap: spacing.xs, flexShrink: 0 }}>
             <button onClick={() => setExpanded(!expanded)} style={{
               background: "none", border: "none",
               color: item.note ? colors.purple : colors.dimmed,
@@ -97,21 +146,103 @@ export default function ItemRow({
             }} title="Annexe / note">
               📎
             </button>
-            <button onClick={() => {
-              const label = item.text || 'cet élément';
-              const msg = hasChildren
-                ? `Supprimer « ${label} » et ses ${childCount} sous-élément${childCount > 1 ? 's' : ''} ?`
-                : `Supprimer « ${label} » ?`;
-              if (window.confirm(msg)) onDelete();
-            }} style={{
-              background: "none", border: "none", color: colors.dimmed,
-              cursor: "pointer", fontSize: fontSizes.base, padding: "2px 4px",
-              transition: transitions.fast,
-            }}
-              onMouseEnter={e => e.target.style.color = colors.red}
-              onMouseLeave={e => e.target.style.color = colors.dimmed}
-              title="Supprimer"
-            >✕</button>
+
+            {/* ⋯ menu */}
+            <span ref={menuRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                style={{
+                  background: "none", border: "none", color: colors.textMuted,
+                  cursor: "pointer", fontSize: fontSizes.md, padding: "2px 4px",
+                  transition: transitions.fast,
+                }}
+                onMouseEnter={e => e.target.style.color = colors.text}
+                onMouseLeave={e => e.target.style.color = colors.textMuted}
+              >⋯</button>
+
+              {menuOpen && (
+                <div style={{
+                  position: 'absolute', right: 0, top: '100%', marginTop: 4,
+                  background: colors.bgSurface, border: `1px solid ${colors.border}`,
+                  borderRadius: radii.lg, padding: spacing.xs,
+                  zIndex: 30, boxShadow: shadows.md, minWidth: 180,
+                }}>
+                  {/* Owner */}
+                  <button
+                    onClick={() => { setMenuOpen(false); setEditingOwner(true); }}
+                    style={menuItemStyle}
+                    onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    {item.owner ? `Modifier owner (@${item.owner})` : 'Ajouter un owner'}
+                  </button>
+
+                  {/* Add sub-item */}
+                  {!isChild && (
+                    <button
+                      onClick={() => { setMenuOpen(false); onAddChild(); }}
+                      style={menuItemStyle}
+                      onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                    >
+                      Ajouter un sous-élément
+                    </button>
+                  )}
+
+                  {/* Move to category */}
+                  <div style={{ padding: `${spacing.xs}px ${spacing.md}px`, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                    <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, whiteSpace: 'nowrap' }}>Catégorie :</span>
+                    <select
+                      value={item.category}
+                      onChange={(e) => { onUpdate({ category: e.target.value }); setMenuOpen(false); }}
+                      style={{
+                        fontSize: fontSizes.sm, background: colors.bgSurface, color: colors.textSecondary,
+                        border: `1px solid ${colors.borderInput}`, borderRadius: radii.sm, padding: "3px 6px",
+                        flex: 1,
+                      }}
+                    >
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Move to section */}
+                  <div style={{ padding: `${spacing.xs}px ${spacing.md}px`, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
+                    <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, whiteSpace: 'nowrap' }}>Section :</span>
+                    <select
+                      value={item.section}
+                      onChange={(e) => { onUpdate({ section: e.target.value }); setMenuOpen(false); }}
+                      style={{
+                        fontSize: fontSizes.sm, background: colors.bgSurface, color: colors.textSecondary,
+                        border: `1px solid ${colors.borderInput}`, borderRadius: radii.sm, padding: "3px 6px",
+                        flex: 1,
+                      }}
+                    >
+                      {sections.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Separator */}
+                  <div style={{ height: 1, background: colors.borderLight, margin: `${spacing.xs}px 0` }} />
+
+                  {/* Delete */}
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      const label = item.text || 'cet élément';
+                      const msg = hasChildren
+                        ? `Supprimer « ${label} » et ses ${childCount} sous-élément${childCount > 1 ? 's' : ''} ?`
+                        : `Supprimer « ${label} » ?`;
+                      if (window.confirm(msg)) onDelete();
+                    }}
+                    style={{ ...menuItemStyle, color: colors.red }}
+                    onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              )}
+            </span>
           </span>
         </div>
 
@@ -123,29 +254,6 @@ export default function ItemRow({
               placeholder="Ajouter une note / annexe…"
               multiline
             />
-            <div style={{ marginTop: spacing.sm, display: "flex", gap: spacing.sm, flexWrap: "wrap", alignItems: "center" }}>
-              <span style={{ fontSize: fontSizes.sm, color: colors.textMuted }}>Déplacer vers :</span>
-              <select
-                value={item.category}
-                onChange={(e) => onUpdate({ category: e.target.value })}
-                style={{
-                  fontSize: fontSizes.sm, background: colors.bgSurface, color: colors.textSecondary,
-                  border: `1px solid ${colors.borderInput}`, borderRadius: radii.sm, padding: "4px 8px",
-                }}
-              >
-                {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
-              </select>
-              <select
-                value={item.section}
-                onChange={(e) => onUpdate({ section: e.target.value })}
-                style={{
-                  fontSize: fontSizes.sm, background: colors.bgSurface, color: colors.textSecondary,
-                  border: `1px solid ${colors.borderInput}`, borderRadius: radii.sm, padding: "4px 8px",
-                }}
-              >
-                {sections.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
           </div>
         )}
       </div>
@@ -159,31 +267,6 @@ export default function ItemRow({
           marginTop: 1,
         }}>
           {children}
-        </div>
-      )}
-
-      {/* Add sub-item button — only visible on hover */}
-      {!isChild && childrenOpen && hovered && (
-        <div style={{ marginLeft: 24, marginBottom: 1 }}>
-          <button
-            onClick={onAddChild}
-            style={{
-              background: 'none',
-              border: 'none',
-              borderRadius: radii.sm,
-              color: colors.dimmed,
-              cursor: 'pointer',
-              fontSize: fontSizes.xs,
-              fontFamily: fonts.body,
-              padding: '1px 10px',
-              transition: transitions.fast,
-              textAlign: 'left',
-            }}
-            onMouseEnter={e => e.target.style.color = colors.textSecondary}
-            onMouseLeave={e => e.target.style.color = colors.dimmed}
-          >
-            + Sub-item
-          </button>
         </div>
       )}
     </div>
