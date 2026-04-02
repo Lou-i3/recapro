@@ -74,12 +74,13 @@ export default function ItemRow({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: spacing.sm }}>
-          {hasChildren && (
+          {!isChild && (
             <span
-              onClick={() => setChildrenOpen(!childrenOpen)}
+              onClick={hasChildren ? () => setChildrenOpen(!childrenOpen) : undefined}
               style={{
-                cursor: 'pointer', fontSize: fontSizes.xs, color: colors.textMuted,
+                fontSize: fontSizes.xs, color: hasChildren ? colors.textMuted : 'transparent',
                 userSelect: 'none', width: 14, textAlign: 'center', flexShrink: 0,
+                cursor: hasChildren ? 'pointer' : 'default',
               }}
             >
               {childrenOpen ? '▼' : '▶'}
