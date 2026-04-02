@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { CATEGORIES, TERMINAL_STATUSES, emptyItem } from "../../lib/constants";
 import { exportProjectJSON, importProjectJSON } from "../../lib/storage";
-import { colors, fonts, fontSizes, spacing, radii, transitions, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle } from "../../lib/theme";
+import { colors, fonts, fontSizes, spacing, radii, transitions, shadows, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle } from "../../lib/theme";
 import EditableText from "./EditableText";
 import ItemRow from "./ItemRow";
 
@@ -14,6 +14,9 @@ export default function ProjectView({ project, onSave }) {
   const [addingSectionOpen, setAddingSectionOpen] = useState(false);
   const [dragItem, setDragItem] = useState(null);
   const [collapsedSections, setCollapsedSections] = useState({});
+  const [sectionMenu, setSectionMenu] = useState(null);
+  const [renamingSection, setRenamingSection] = useState(null);
+  const sectionMenuRef = useRef(null);
 
   const update = (patch) => onSave({ ...project, ...patch });
 
@@ -49,6 +52,23 @@ export default function ProjectView({ project, onSave }) {
     setItems((prev) => prev.map((it) => (it.section === s ? { ...it, section: fallback } : it)));
     setSections((prev) => prev.filter((x) => x !== s));
   };
+
+  const renameSection = (oldName, newName) => {
+    const name = newName.trim();
+    if (!name || name === oldName || sections.includes(name)) return;
+    setSections((prev) => prev.map(s => s === oldName ? name : s));
+    setItems((prev) => prev.map(it => it.section === oldName ? { ...it, section: name } : it));
+  };
+
+  // Close section menu on outside click
+  useEffect(() => {
+    if (!sectionMenu) return;
+    const handle = (e) => {
+      if (sectionMenuRef.current && !sectionMenuRef.current.contains(e.target)) setSectionMenu(null);
+    };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [sectionMenu]);
 
   const toggleCollapse = (key) =>
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -179,15 +199,6 @@ export default function ProjectView({ project, onSave }) {
             <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginLeft: spacing.xs }}>
               {getRootItems(sectionItems).length} élément{getRootItems(sectionItems).length !== 1 ? "s" : ""}
             </span>
-            <button onClick={() => removeSection(section)} style={{
-              marginLeft: "auto", background: "none", border: "none",
-              color: colors.dimmed, cursor: "pointer", fontSize: fontSizes.sm,
-              transition: transitions.fast,
-            }}
-              onMouseEnter={e => e.target.style.color = colors.red}
-              onMouseLeave={e => e.target.style.color = colors.dimmed}
-              title="Supprimer la section"
-            >✕</button>
           </div>
           {!collapsed && CATEGORIES.map((cat) => {
             const catItems = sectionItems.filter((i) => i.category === cat.id);
@@ -322,10 +333,81 @@ export default function ProjectView({ project, onSave }) {
       <div style={{ display: "flex", gap: spacing.sm, marginBottom: spacing.lg, flexWrap: "wrap", alignItems: "center" }}>
         <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginRight: spacing.xs }}>Sections :</span>
         {sections.map((s) => (
-          <span key={s} style={{
-            background: colors.surface2, borderRadius: radii.sm,
-            padding: `2px ${spacing.sm}px`, fontSize: fontSizes.sm, color: colors.textSecondary,
-          }}>{s}</span>
+          <span key={s} style={{ position: 'relative', display: 'inline-flex' }}>
+            {renamingSection === s ? (
+              <input
+                autoFocus
+                defaultValue={s}
+                onBlur={(e) => { renameSection(s, e.target.value); setRenamingSection(null); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { renameSection(s, e.target.value); setRenamingSection(null); }
+                  if (e.key === 'Escape') setRenamingSection(null);
+                }}
+                style={{ ...inputStyle, fontSize: fontSizes.sm, width: 130, padding: "2px 8px" }}
+              />
+            ) : (
+              <button
+                onClick={() => setSectionMenu(sectionMenu === s ? null : s)}
+                style={{
+                  background: colors.surface2, borderRadius: radii.sm,
+                  padding: `2px ${spacing.sm}px`, fontSize: fontSizes.sm, color: colors.textSecondary,
+                  border: sectionMenu === s ? `1px solid ${colors.border}` : '1px solid transparent',
+                  cursor: 'pointer', fontFamily: fonts.body, transition: transitions.fast,
+                }}
+                onMouseEnter={e => e.currentTarget.style.borderColor = colors.border}
+                onMouseLeave={e => { if (sectionMenu !== s) e.currentTarget.style.borderColor = 'transparent'; }}
+              >
+                {s}
+              </button>
+            )}
+            {sectionMenu === s && (
+              <div ref={sectionMenuRef} style={{
+                position: 'absolute', left: 0, top: '100%', marginTop: 4,
+                background: colors.bgSurface, border: `1px solid ${colors.border}`,
+                borderRadius: radii.lg, padding: spacing.xs,
+                zIndex: 30, boxShadow: shadows.md, minWidth: 150,
+              }}>
+                <button
+                  onClick={() => { setSectionMenu(null); setRenamingSection(s); }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    background: 'none', border: 'none', color: colors.textSecondary,
+                    cursor: 'pointer', padding: `${spacing.xs + 2}px ${spacing.md}px`,
+                    fontSize: fontSizes.sm, borderRadius: radii.sm,
+                    fontFamily: fonts.body, transition: transitions.fast,
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  Renommer
+                </button>
+                <button
+                  onClick={() => {
+                    setSectionMenu(null);
+                    const count = items.filter(i => i.section === s).length;
+                    const msg = count > 0
+                      ? `Supprimer la section « ${s} » ? Ses ${count} élément${count > 1 ? 's' : ''} seront déplacés.`
+                      : `Supprimer la section « ${s} » ?`;
+                    if (window.confirm(msg)) removeSection(s);
+                  }}
+                  disabled={sections.length <= 1}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    background: 'none', border: 'none',
+                    color: sections.length <= 1 ? colors.dimmed : colors.red,
+                    cursor: sections.length <= 1 ? 'not-allowed' : 'pointer',
+                    padding: `${spacing.xs + 2}px ${spacing.md}px`,
+                    fontSize: fontSizes.sm, borderRadius: radii.sm,
+                    fontFamily: fonts.body, transition: transitions.fast,
+                  }}
+                  onMouseEnter={e => { if (sections.length > 1) e.currentTarget.style.background = colors.surface2; }}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  Supprimer
+                </button>
+              </div>
+            )}
+          </span>
         ))}
         {addingSectionOpen ? (
           <span style={{ display: "inline-flex", gap: spacing.xs }}>
