@@ -9,7 +9,7 @@ import type { PriorityId } from '../../../types';
 export default function TasksInProgressPage() {
   const { projects, loading } = useAllProjects();
 
-  if (loading) return <div style={{ color: colors.textMuted }}>Chargement…</div>;
+  if (loading) return <div style={{ color: colors.textMuted }}>Loading…</div>;
 
   const priorityOrder: Record<PriorityId, number> = { high: 0, medium: 1, low: 2 };
   const inProgress = projects
@@ -23,15 +23,15 @@ export default function TasksInProgressPage() {
   return (
     <div style={{ fontFamily: fonts.body, maxWidth: 900, padding: spacing.xxl, background: colors.bgContent, minHeight: '100%' }}>
       <h2 style={{ color: colors.text, fontWeight: 600, marginBottom: spacing.sm, fontSize: fontSizes.xl }}>
-        Tâches en cours
+        In progress
       </h2>
       <p style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginBottom: spacing.xl }}>
-        {inProgress.length} tâche{inProgress.length !== 1 ? 's' : ''} en cours
+        {inProgress.length} task{inProgress.length !== 1 ? 's' : ''} in progress
       </p>
 
       {inProgress.length === 0 ? (
         <p style={{ color: colors.textMuted, fontStyle: 'italic' }}>
-          Toutes les tâches sont terminées !
+          All tasks are complete!
         </p>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -63,7 +63,7 @@ export default function TasksInProgressPage() {
                 )}
                 <span style={{ fontSize: fontSizes.sm }}>{cat.icon}</span>
                 <span style={{ flex: 1, color: colors.text }}>
-                  {item.text || 'Sans titre'}
+                  {item.text || 'Untitled'}
                 </span>
                 {statusDef && (
                   <span style={{

@@ -94,7 +94,7 @@ export default function MarkdownPanel({ markdown, onChange, width, onResize }: M
           onClick={handleToggle}
           style={editing ? buttonPrimaryStyle : buttonStyle}
         >
-          {editing ? 'Enregistrer' : 'Modifier'}
+          {editing ? 'Save' : 'Edit'}
         </button>
       </div>
 
@@ -107,7 +107,7 @@ export default function MarkdownPanel({ markdown, onChange, width, onResize }: M
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Notes en markdown…"
+            placeholder="Markdown notes…"
             style={{
               width: '100%',
               height: '100%',
@@ -132,7 +132,7 @@ export default function MarkdownPanel({ markdown, onChange, width, onResize }: M
               <Markdown remarkPlugins={[remarkGfm]}>{markdown}</Markdown>
             ) : (
               <p style={{ color: colors.textMuted, fontStyle: 'italic' }}>
-                Aucune note pour ce projet. Cliquez sur « Modifier » pour en ajouter.
+                No notes for this project. Click "Edit" to add some.
               </p>
             )}
           </div>

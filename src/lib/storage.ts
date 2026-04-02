@@ -47,7 +47,7 @@ export function exportProjectJSON(data: Pick<Project, 'projectName' | 'sections'
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  const filename = (data.projectName || "projet").replace(/\s+/g, "_");
+  const filename = (data.projectName || "project").replace(/\s+/g, "_");
   a.href = url;
   a.download = `${filename}_status.json`;
   a.click();

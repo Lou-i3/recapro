@@ -44,16 +44,16 @@ export async function POST(request: NextRequest) {
   ensureDataDir();
   const body = await request.json();
   const { slug, projectName, sections, items, markdown } = body;
-  if (!slug) return NextResponse.json({ error: 'Slug requis' }, { status: 400 });
+  if (!slug) return NextResponse.json({ error: 'Slug required' }, { status: 400 });
 
   const filePath = getProjectPath(slug);
-  if (!filePath) return NextResponse.json({ error: 'Slug invalide' }, { status: 400 });
-  if (fs.existsSync(filePath)) return NextResponse.json({ error: 'Ce projet existe déjà' }, { status: 409 });
+  if (!filePath) return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
+  if (fs.existsSync(filePath)) return NextResponse.json({ error: 'Project already exists' }, { status: 409 });
 
   const data = {
     slug,
     projectName: projectName || slug,
-    sections: sections || ['Général', 'Technique', 'Budget', 'Planning'],
+    sections: sections || ['General', 'Technical', 'Budget', 'Planning'],
     items: items || [],
     markdown: markdown || '',
     updatedAt: Date.now(),

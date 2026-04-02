@@ -16,7 +16,7 @@ export function useAllProjects() {
         );
         if (!cancelled) setProjects(full.filter((p): p is Project => p !== null));
       } catch (err) {
-        console.error('Erreur chargement projets:', err);
+        console.error('Error loading projects:', err);
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -1,27 +1,27 @@
-# Project Status Tracker
+# RécaPro
 
-## Présentation
+## Overview
 
-Application Next.js de suivi de statut projet. Gère des éléments (décisions, actions, questions) organisés par sections et catégories, avec priorité, assignation, notes markdown, sous-éléments, drag & drop, et persistance filesystem.
+Next.js project status tracking app. Manages items (decisions, actions, questions) organized by sections and categories, with priority, assignment, markdown notes, sub-items, item linking, drag & drop, and filesystem persistence.
 
-## Stack technique
+## Tech stack
 
-- **Framework** : Next.js 16 (App Router)
-- **Langage** : TypeScript (strict)
-- **UI** : React 19, functional components avec hooks
-- **Style** : Inline styles avec design tokens (`src/lib/theme.ts`), dark theme
-- **Polices** : DM Sans (body), Space Mono (monospace/labels)
-- **Persistance** : Fichiers JSON dans `data/` via API Routes
-- **Build** : Next.js (Turbopack en dev)
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript (strict)
+- **UI**: React 19, functional components with hooks
+- **Styling**: Inline styles with design tokens (`src/lib/theme.ts`), dark theme
+- **Fonts**: DM Sans (body), Space Mono (monospace/labels)
+- **Persistence**: JSON files in `data/` via API Routes
+- **Build**: Next.js (Turbopack in dev)
 
-## Structure du projet
+## Project structure
 
 ```
 src/
 ├── app/                        # Next.js App Router
 │   ├── layout.tsx              # Root layout (html, body, ClientLayout)
 │   ├── page.tsx                # Redirect → /dashboard
-│   ├── globals.css             # Reset CSS + styles markdown
+│   ├── globals.css             # CSS reset + markdown styles
 │   ├── api/projects/
 │   │   ├── route.ts            # GET (list), POST (create)
 │   │   └── [slug]/route.ts     # GET, PUT, DELETE
@@ -32,66 +32,78 @@ src/
 │       └── in-progress/page.tsx
 ├── components/
 │   ├── layout/
-│   │   ├── Layout.tsx          # Client layout (contextes, sidebar, main)
-│   │   └── Sidebar.tsx         # Navigation, gestion projets
+│   │   ├── Layout.tsx          # Client layout (contexts, sidebar, main)
+│   │   └── Sidebar.tsx         # Navigation, project management
 │   ├── project/
-│   │   ├── ProjectView.tsx     # Vue principale projet (items, sections, stats)
-│   │   ├── ItemRow.tsx         # Ligne d'un élément (status, priorité, owner, menu)
-│   │   ├── EditableText.tsx    # Texte inline éditable avec preview markdown
-│   │   ├── StatusBadge.tsx     # Sélecteur de statut par catégorie
-│   │   ├── PriorityDot.tsx     # Sélecteur de priorité
-│   │   └── MarkdownPanel.tsx   # Panneau notes markdown resizable
+│   │   ├── ProjectView.tsx     # Main project view (items, sections, stats)
+│   │   ├── ItemRow.tsx         # Item row (status, priority, owner, menu, links)
+│   │   ├── LinkSection.tsx     # Link panel (chips, search, quick create, indicators)
+│   │   ├── EditableText.tsx    # Inline editable text with markdown preview
+│   │   ├── StatusBadge.tsx     # Status selector per category
+│   │   ├── PriorityDot.tsx     # Priority selector
+│   │   └── MarkdownPanel.tsx   # Resizable markdown notes panel
 │   └── dashboard/
-│       ├── StatsSection.tsx    # Stats globales et par projet
-│       └── ActivityFeed.tsx    # Activité récente
+│       ├── StatsSection.tsx    # Global and per-project stats
+│       └── ActivityFeed.tsx    # Recent activity
 ├── hooks/
-│   ├── useProject.ts           # Fetch + save debounced d'un projet
-│   ├── useProjects.ts          # Liste projets (CRUD)
-│   └── useAllProjects.ts       # Tous les projets avec données complètes
+│   ├── useProject.ts           # Fetch + debounced save for a project
+│   ├── useProjects.ts          # Projects list (CRUD)
+│   └── useAllProjects.ts       # All projects with full data
 ├── lib/
-│   ├── constants.ts            # CATEGORIES, PRIORITY_LEVELS, STATUS_BY_CATEGORY, emptyItem()
+│   ├── constants.ts            # CATEGORIES, PRIORITY_LEVELS, STATUS_BY_CATEGORY, LINK_LABELS, emptyItem()
 │   ├── theme.ts                # Design tokens (colors, fonts, spacing, style presets)
 │   ├── api.ts                  # Client fetch wrapper (/api/projects)
 │   └── storage.ts              # localStorage legacy + export/import JSON
 └── types/
-    └── index.ts                # Types centraux (Item, Project, CategoryId, etc.)
+    └── index.ts                # Central types (Item, ItemLink, LinkType, Project, CategoryId, etc.)
 ```
 
-## Commandes
+## Commands
 
 ```bash
-npm install        # Installer les dépendances
-npm run dev        # Serveur de dev (http://localhost:3000)
-npm run build      # Build production
-npm run start      # Serveur production
-npm run typecheck  # Vérification TypeScript (tsc --noEmit)
+npm install        # Install dependencies
+npm run dev        # Dev server (http://localhost:3000)
+npm run build      # Production build
+npm run start      # Production server
+npm run typecheck  # TypeScript check (tsc --noEmit)
 ```
 
 ## Conventions
 
-- **Langue UI** : Français (labels, placeholders, messages)
-- **Nommage** : camelCase pour variables/fonctions, PascalCase pour composants
-- **Composants** : Functional components avec hooks, `"use client"` sur tous les composants interactifs
-- **State** : useState/useEffect/useCallback, Context API pour état global (ProjectsContext, LayoutContext)
-- **Styles** : Inline styles avec objets JS typés (`CSSProperties`). Tokens dans `theme.ts`
-- **Navigation** : `next/link` et `next/navigation` (useRouter, usePathname, useParams)
-- **API** : Route Handlers Next.js dans `src/app/api/`
+- **UI language**: English (labels, placeholders, messages)
+- **Naming**: camelCase for variables/functions, PascalCase for components
+- **Components**: Functional components with hooks, `"use client"` on all interactive components
+- **State**: useState/useEffect/useCallback, Context API for global state (ProjectsContext, LayoutContext)
+- **Styles**: Inline styles with typed JS objects (`CSSProperties`). Tokens in `theme.ts`
+- **Navigation**: `next/link` and `next/navigation` (useRouter, usePathname, useParams)
+- **API**: Next.js Route Handlers in `src/app/api/`
 
-## Modèle de données
+## Data model
 
 ### Item
 ```ts
 {
   id: string;           // crypto.randomUUID()
   text: string;
-  status: ItemStatus;   // Dépend de la catégorie (ex: "todo", "in-progress", "done")
+  status: ItemStatus;   // Depends on category (e.g. "todo", "in-progress", "done")
   category: CategoryId; // "decisions" | "actions" | "questions"
-  section: string;      // Section personnalisée
+  section: string;      // Custom section
   priority: PriorityId; // "high" | "medium" | "low"
   owner: string;
   note: string;
-  parentId: string | null;  // Sous-éléments
+  parentId: string | null;  // Sub-items
   createdAt: number;
+  shortId: string;      // Stable readable ID (e.g. "D3", "A7", "Q2")
+  links: ItemLink[];    // Typed links to other items
+  order: number;        // Position within section×category group
+}
+```
+
+### ItemLink
+```ts
+{
+  targetId: string;
+  type: LinkType;       // "depends-on" | "stems-from" | "related"
 }
 ```
 
@@ -102,19 +114,24 @@ npm run typecheck  # Vérification TypeScript (tsc --noEmit)
   projectName: string;
   sections: string[];
   items: Item[];
-  markdown?: string;    // Notes projet en markdown
+  markdown?: string;    // Project notes in markdown
   updatedAt?: number;
 }
 ```
 
-### Statuts par catégorie
-- **Decisions** : to-discuss → to-validate → validated → closed
-- **Actions** : todo → in-progress → to-review → done / blocked → closed
-- **Questions** : to-ask → to-adjust → answered → closed
+### Statuses by category
+- **Decisions**: to-discuss → to-validate → validated → closed
+- **Actions**: todo → in-progress → to-review → done / blocked → closed
+- **Questions**: to-ask → to-adjust → answered → closed
 
-## Notes pour Claude
+### Link types
+- **depends-on**: hard dependency (forward: "depends on", reverse: "blocks")
+- **stems-from**: causal origin (forward: "stems from", reverse: "leads to")
+- **related**: soft association (bidirectional: "related to")
 
-- Les données sont stockées dans `data/{slug}.json`. Le dossier `data/` est ignoré par git.
-- Le format JSON d'export/import doit rester stable (contrat d'interface pour intégrations futures).
-- L'utilisateur travaille dans l'écosystème M365 et pourrait vouloir intégrer avec Power Automate ou Graph API.
-- Voir `docs/` pour les plans d'implémentation des prochaines features.
+## Notes for Claude
+
+- Data is stored in `data/{slug}.json`. The `data/` folder is gitignored.
+- JSON export/import format must remain stable (interface contract for future integrations).
+- The user works in the M365 ecosystem and may want to integrate with Power Automate or Graph API.
+- See `docs/` for implementation plans for upcoming features.

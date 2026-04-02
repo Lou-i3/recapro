@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useProject } from '../../../hooks/useProject';
 import ProjectView from '../../../components/project/ProjectView';
 import MarkdownPanel from '../../../components/project/MarkdownPanel';
@@ -12,8 +12,15 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
   const [notesVisible, setNotesVisible] = useState(true);
   const [notesWidth, setNotesWidth] = useState(400);
 
-  if (loading) return <div style={{ color: colors.textMuted }}>Chargement…</div>;
-  if (!data) return <div style={{ color: colors.red }}>Projet non trouvé</div>;
+  useEffect(() => {
+    if (data?.projectName) {
+      document.title = `RécaPro | ${data.projectName}`;
+    }
+    return () => { document.title = 'RécaPro'; };
+  }, [data?.projectName]);
+
+  if (loading) return <div style={{ color: colors.textMuted }}>Loading…</div>;
+  if (!data) return <div style={{ color: colors.red }}>Project not found</div>;
 
   return (
     <div style={{
@@ -37,7 +44,7 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
 
       <button
         onClick={() => setNotesVisible(v => !v)}
-        title={notesVisible ? 'Masquer les notes' : 'Afficher les notes'}
+        title={notesVisible ? 'Hide notes' : 'Show notes'}
         style={{
           position: 'absolute',
           top: spacing.sm,

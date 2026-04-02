@@ -10,13 +10,13 @@ export default function TasksByProjectPage() {
   const { projects, loading } = useAllProjects();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  if (loading) return <div style={{ color: colors.textMuted }}>Chargement…</div>;
+  if (loading) return <div style={{ color: colors.textMuted }}>Loading…</div>;
 
   if (projects.length === 0) {
     return (
       <div style={{ fontFamily: fonts.body }}>
-        <h2 style={{ color: colors.text, fontWeight: 600, marginBottom: spacing.sm, fontSize: fontSizes.xl }}>Tâches par projet</h2>
-        <p style={{ fontStyle: 'italic', color: colors.textMuted }}>Aucun projet.</p>
+        <h2 style={{ color: colors.text, fontWeight: 600, marginBottom: spacing.sm, fontSize: fontSizes.xl }}>Tasks by project</h2>
+        <p style={{ fontStyle: 'italic', color: colors.textMuted }}>No projects.</p>
       </div>
     );
   }
@@ -24,7 +24,7 @@ export default function TasksByProjectPage() {
   return (
     <div style={{ fontFamily: fonts.body, maxWidth: 900, padding: spacing.xxl, background: colors.bgContent, minHeight: '100%' }}>
       <h2 style={{ color: colors.text, fontWeight: 600, marginBottom: spacing.xl, fontSize: fontSizes.xl }}>
-        Tâches par projet
+        Tasks by project
       </h2>
       {projects.map(p => {
         const items = (p.items || []).filter(i => !i.parentId);
@@ -48,13 +48,13 @@ export default function TasksByProjectPage() {
                 {p.projectName}
               </Link>
               <span style={{ fontSize: fontSizes.sm, color: colors.textMuted }}>
-                {items.length} élément{items.length !== 1 ? 's' : ''}
+                {items.length} item{items.length !== 1 ? 's' : ''}
               </span>
             </div>
             {!isCollapsed && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {items.length === 0 ? (
-                  <p style={{ fontSize: fontSizes.sm, color: colors.textMuted, paddingLeft: spacing.sm }}>Aucun élément</p>
+                  <p style={{ fontSize: fontSizes.sm, color: colors.textMuted, paddingLeft: spacing.sm }}>No items</p>
                 ) : items.map(item => {
                   const cat = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[0];
                   const isTerminal = COMPLETED_STATUSES.has(item.status);
@@ -75,7 +75,7 @@ export default function TasksByProjectPage() {
                         textDecoration: isTerminal ? 'line-through' : 'none',
                         textDecorationColor: colors.textMuted,
                       }}>
-                        {item.text || 'Sans titre'}
+                        {item.text || 'Untitled'}
                       </span>
                       {statusDef && (
                         <span style={{

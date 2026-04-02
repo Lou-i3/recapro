@@ -1,60 +1,63 @@
-# Project Status Tracker
+# RécaPro
 
-Application de suivi de statut projet. Gère des décisions, actions et questions organisées par sections, avec priorités, assignation, notes et sous-éléments.
+Project status tracking application. Manages decisions, actions and questions organized by sections, with priorities, assignment, notes, sub-items, and item linking.
 
-## Démarrage
+## Getting started
 
 ```bash
 npm install
 npm run dev
 ```
 
-L'app est accessible sur http://localhost:3000.
+The app is available at http://localhost:3000.
 
-## Fonctionnalités
+## Features
 
-- **Multi-projets** — créer, gérer et naviguer entre plusieurs projets
-- **3 catégories** — Décisions, Actions, Questions, chacune avec ses propres statuts
-- **Sections personnalisables** — organiser les éléments par thème (Général, Technique, Budget…)
-- **Priorités et assignation** — haute/moyenne/basse, owner par élément
-- **Sous-éléments** — items enfants avec suivi de complétion
-- **Notes markdown** — panneau de notes par projet avec preview markdown
-- **Drag & drop** — déplacer les items entre sections et catégories
-- **Vues** — par section ou par catégorie, avec collapse/expand
-- **Import/Export JSON** — sauvegarder et restaurer les données
-- **Dashboard** — stats globales et activité récente
+- **Multi-project** — create, manage and navigate between multiple projects
+- **3 categories** — Decisions, Actions, Questions, each with their own statuses
+- **Custom sections** — organize items by theme (General, Technical, Budget…)
+- **Priorities & assignment** — high/medium/low, owner per item
+- **Sub-items** — child items with completion tracking
+- **Short IDs** — stable, readable IDs per item (D1, A5, Q3)
+- **Item linking** — typed relationships: depends on, stems from, related to
+- **Dependency indicators** — visual status on dependency links with unblock suggestions
+- **Markdown notes** — per-project notes panel with markdown preview
+- **Drag & drop** — move items between sections and categories
+- **Views** — by section or by category, with collapse/expand
+- **Import/Export JSON** — save and restore data
+- **Dashboard** — global stats and recent activity
 
 ## Stack
 
 - **Next.js 16** (App Router) + **React 19** + **TypeScript**
-- API Routes intégrées (stockage JSON sur le filesystem dans `data/`)
-- Inline styles avec design tokens (dark theme)
+- Built-in API Routes (JSON storage on filesystem in `data/`)
+- Inline styles with design tokens (dark theme)
 
 ## Structure
 
 ```
 src/
-├── app/                    # Pages et API Routes (Next.js App Router)
-│   ├── api/projects/       # CRUD projets (GET, POST, PUT, DELETE)
-│   ├── dashboard/          # Dashboard global
-│   ├── project/[slug]/     # Vue projet
-│   └── tasks/              # Vues tâches (par projet, en cours)
-├── components/             # Composants React
+├── app/                    # Pages and API Routes (Next.js App Router)
+│   ├── api/projects/       # CRUD projects (GET, POST, PUT, DELETE)
+│   ├── dashboard/          # Global dashboard
+│   ├── project/[slug]/     # Project view
+│   └── tasks/              # Task views (by project, in progress)
+├── components/             # React components
 │   ├── dashboard/          # StatsSection, ActivityFeed
 │   ├── layout/             # Layout, Sidebar
-│   └── project/            # ProjectView, ItemRow, EditableText, etc.
+│   └── project/            # ProjectView, ItemRow, LinkSection, EditableText, etc.
 ├── hooks/                  # useProject, useProjects, useAllProjects
 ├── lib/                    # constants, theme, api, storage
-└── types/                  # Types TypeScript centraux
+└── types/                  # Central TypeScript types
 ```
 
 ## Roadmap
 
-- [ ] **Serveur MCP** — permettre à Claude d'interagir avec les données projet ([plan](docs/plan-mcp-server.md))
-- [ ] **Import/Export amélioré** — merge, export partiel, format CSV
-- [ ] **Historique / audit** — log des changements de statut
-- [ ] **Filtres avancés** — par owner, priorité, recherche texte
-- [ ] **Drag & drop amélioré** — réordonner les items et les sections
-- [ ] **Thème** — toggle light/dark
-- [ ] **Export Notion** — générer des pages Notion via l'API
-- [ ] **Recherche** — barre de recherche globale avec raccourcis clavier permettant de filter les items par texte, owner, priorité, etc.
+- [ ] **MCP Server** — allow Claude to interact with project data ([plan](docs/plan-mcp-server.md))
+- [ ] **Enhanced import/export** — merge, partial export, CSV format
+- [ ] **History / audit** — log status changes
+- [ ] **Advanced filters** — by owner, priority, text search
+- [ ] **Enhanced drag & drop** — reorder items and sections
+- [ ] **Theme** — light/dark toggle
+- [ ] **Notion export** — generate Notion pages via API
+- [ ] **Search** — global search bar with keyboard shortcuts to filter items by text, owner, priority, etc.

@@ -1,15 +1,15 @@
-import type { Category, PriorityLevel, StatusOption, CategoryId, ItemStatus, Item } from '../types';
+import type { Category, PriorityLevel, StatusOption, CategoryId, ItemStatus, Item, LinkType } from '../types';
 
 export const CATEGORIES: readonly Category[] = [
-  { id: "decisions", label: "Décisions", icon: "🎯", color: "#E8B931" },
+  { id: "decisions", label: "Decisions", icon: "🎯", color: "#E8B931" },
   { id: "actions", label: "Actions", icon: "🔧", color: "#4EA8DE" },
   { id: "questions", label: "Questions", icon: "💬", color: "#C77DBA" },
 ] as const;
 
 export const PRIORITY_LEVELS: readonly PriorityLevel[] = [
-  { id: "high", label: "Haute", dot: "#E25D5D", icon: "▲" },
-  { id: "medium", label: "Moyenne", dot: "#E8B931", icon: "◆" },
-  { id: "low", label: "Basse", dot: "#6BC06B", icon: "▽" },
+  { id: "high", label: "High", dot: "#E25D5D", icon: "▲" },
+  { id: "medium", label: "Medium", dot: "#E8B931", icon: "◆" },
+  { id: "low", label: "Low", dot: "#6BC06B", icon: "▽" },
 ] as const;
 
 export const STATUS_BY_CATEGORY: Record<CategoryId, readonly StatusOption[]> = {
@@ -48,7 +48,19 @@ export const HIDDEN_STATUSES = new Set<string>([
   "closed", "done",
 ]);
 
-export const DEFAULT_SECTIONS = ["Général", "Technique", "Budget", "Planning"];
+export const DEFAULT_SECTIONS = ["General", "Technical", "Budget", "Planning"];
+
+export const CATEGORY_PREFIX: Record<CategoryId, string> = {
+  decisions: 'D',
+  actions: 'A',
+  questions: 'Q',
+};
+
+export const LINK_LABELS: Record<LinkType, { forward: string; reverse: string }> = {
+  'depends-on': { forward: 'depends on',    reverse: 'blocks' },
+  'stems-from': { forward: 'stems from',   reverse: 'leads to' },
+  'related':    { forward: 'related to',   reverse: 'related to' },
+};
 
 export const emptyItem = (categoryId: CategoryId, section: string, parentId: string | null = null): Item => ({
   id: crypto.randomUUID(),
@@ -61,4 +73,7 @@ export const emptyItem = (categoryId: CategoryId, section: string, parentId: str
   note: "",
   parentId,
   createdAt: Date.now(),
+  shortId: "",
+  links: [],
+  order: 0,
 });

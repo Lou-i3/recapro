@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect } from "react";
-import { CATEGORIES, COMPLETED_STATUSES, HIDDEN_STATUSES, emptyItem } from "../../lib/constants";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { CATEGORIES, COMPLETED_STATUSES, HIDDEN_STATUSES, CATEGORY_PREFIX, emptyItem } from "../../lib/constants";
 import { exportProjectJSON, importProjectJSON } from "../../lib/storage";
 import { colors, categoryBg, fonts, fontSizes, spacing, radii, transitions, shadows, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle } from "../../lib/theme";
 import EditableText from "./EditableText";
 import ItemRow from "./ItemRow";
-import type { Project, Item, CategoryId } from "../../types";
+import type { Project, Item, CategoryId, ItemLink, LinkType } from "../../types";
 
 interface ProjectViewProps {
   project: Project;
@@ -42,8 +42,39 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   const deleteItem = (id: string) =>
     setItems((prev) => prev.filter((it) => it.id !== id && it.parentId !== id));
-  const addItem = (categoryId: CategoryId, section: string, parentId: string | null = null) =>
-    setItems((prev) => [...prev, emptyItem(categoryId, section, parentId)]);
+
+  const nextShortId = useCallback((categoryId: CategoryId, parentId: string | null, currentItems: Item[]) => {
+    if (parentId) {
+      const parent = currentItems.find(i => i.id === parentId);
+      const siblingCount = currentItems.filter(i => i.parentId === parentId).length;
+      return `${parent?.shortId || '?'}.${siblingCount + 1}`;
+    }
+    const prefix = CATEGORY_PREFIX[categoryId];
+    const maxNum = currentItems
+      .filter(i => i.category === categoryId && !i.parentId && i.shortId)
+      .reduce((max, i) => {
+        const n = parseInt(i.shortId.slice(1), 10);
+        return !isNaN(n) && n > max ? n : max;
+      }, 0);
+    return `${prefix}${maxNum + 1}`;
+  }, []);
+
+  const nextOrder = useCallback((categoryId: CategoryId, section: string, currentItems: Item[]) => {
+    const groupItems = currentItems.filter(i => i.category === categoryId && i.section === section && !i.parentId);
+    return groupItems.reduce((max, i) => Math.max(max, i.order || 0), 0) + 1;
+  }, []);
+
+  const addItem = (categoryId: CategoryId, section: string, parentId: string | null = null, extraLinks: ItemLink[] = []) => {
+    setItems((prev) => {
+      const newItem = {
+        ...emptyItem(categoryId, section, parentId),
+        shortId: nextShortId(categoryId, parentId, prev),
+        order: nextOrder(categoryId, section, prev),
+        links: extraLinks,
+      };
+      return [...prev, newItem];
+    });
+  };
 
   const addSection = () => {
     const name = newSection.trim();
@@ -98,8 +129,32 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
   });
   const overallRate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
 
+  // Compute reverse links: for each item, which other items link TO it
+  const reverseLinks = useMemo(() => {
+    const map: Record<string, { sourceId: string; type: LinkType }[]> = {};
+    for (const item of items) {
+      if (!item.links) continue;
+      for (const link of item.links) {
+        if (!map[link.targetId]) map[link.targetId] = [];
+        map[link.targetId].push({ sourceId: item.id, type: link.type });
+      }
+    }
+    return map;
+  }, [items]);
+
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+
+  const scrollToItem = useCallback((itemId: string) => {
+    setHighlightedItemId(itemId);
+    setTimeout(() => {
+      const el = document.getElementById(`item-${itemId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+    setTimeout(() => setHighlightedItemId(null), 2500);
+  }, []);
+
   const getChildren = (parentId: string) => filteredItems.filter(i => i.parentId === parentId);
-  const getRootItems = (list: Item[]) => list.filter(i => !i.parentId);
+  const getRootItems = (list: Item[]) => list.filter(i => !i.parentId).sort((a, b) => (a.order || 0) - (b.order || 0));
   const getChildCount = (parentId: string) => items.filter(i => i.parentId === parentId).length;
   const getDoneChildCount = (parentId: string) => items.filter(i => i.parentId === parentId && isCompleted(i)).length;
 
@@ -111,7 +166,20 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
   const handleDrop = (e: React.DragEvent, targetCategory: CategoryId, targetSection: string) => {
     e.preventDefault();
     if (dragItem) {
-      updateItem(dragItem.id, { category: targetCategory, section: targetSection });
+      setItems((prev) => {
+        const updated = prev.map(it => it.id === dragItem.id
+          ? { ...it, category: targetCategory, section: targetSection }
+          : it
+        );
+        // Reindex order for the target group
+        let order = 1;
+        return updated.map(it => {
+          if (it.category === targetCategory && it.section === targetSection && !it.parentId) {
+            return { ...it, order: order++ };
+          }
+          return it;
+        });
+      });
       setDragItem(null);
     }
   };
@@ -146,6 +214,17 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
         doneCount={getDoneChildCount(item.id)}
         onAddChild={() => addItem(item.category, item.section, item.id)}
         isChild={false}
+        allItems={items}
+        reverseLinks={reverseLinks[item.id] || []}
+        onScrollToItem={scrollToItem}
+        highlighted={highlightedItemId === item.id}
+        onAddLinkedItem={(categoryId, linkType) => {
+          addItem(categoryId, item.section, null, [{ targetId: item.id, type: linkType }]);
+        }}
+        onAddLink={(link) => updateItem(item.id, { links: [...(item.links || []), link] })}
+        onRemoveLink={(targetId, type) => updateItem(item.id, {
+          links: (item.links || []).filter(l => !(l.targetId === targetId && l.type === type)),
+        })}
       >
         {childItems.map(child => (
           <ItemRow
@@ -160,6 +239,15 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
             doneCount={0}
             onAddChild={() => {}}
             isChild={true}
+            allItems={items}
+            reverseLinks={reverseLinks[child.id] || []}
+            onScrollToItem={scrollToItem}
+            highlighted={highlightedItemId === child.id}
+            onAddLinkedItem={() => {}}
+            onAddLink={(link) => updateItem(child.id, { links: [...(child.links || []), link] })}
+            onRemoveLink={(targetId, type) => updateItem(child.id, {
+              links: (child.links || []).filter(l => !(l.targetId === targetId && l.type === type)),
+            })}
           />
         ))}
       </ItemRow>
@@ -181,7 +269,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
           onMouseEnter={(e) => { e.currentTarget.style.borderColor = colors.borderInput; e.currentTarget.style.color = colors.textSecondary; }}
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = colors.borderDashed; e.currentTarget.style.color = colors.dimmed; }}
         >
-          + Ajouter
+          + Add
         </button>
       </div>
     );
@@ -208,7 +296,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
               {section}
             </span>
             <span style={{ fontSize: fontSizes.sm, color: colors.textMuted }}>
-              {count} élément{count !== 1 ? "s" : ""}
+              {count} item{count !== 1 ? "s" : ""}
             </span>
             <span style={{ marginLeft: 'auto', fontSize: fontSizes.xs, color: colors.textMuted, transition: transitions.fast }}>
               {collapsed ? "▶" : "▼"}
@@ -342,11 +430,11 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
             <EditableText
               value={projectName}
               onChange={setProjectName}
-              placeholder="Nom du projet"
+              placeholder="Project name"
             />
           </div>
           <div style={{ ...labelStyle, fontSize: fontSizes.xs }}>
-            {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+            {new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}
           </div>
         </div>
 
@@ -495,15 +583,15 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
                   onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
                 >
-                  Renommer
+                  Rename
                 </button>
                 <button
                   onClick={() => {
                     setSectionMenu(null);
                     const count = items.filter(i => i.section === s).length;
                     const msg = count > 0
-                      ? `Supprimer la section « ${s} » ? Ses ${count} élément${count > 1 ? 's' : ''} seront déplacés.`
-                      : `Supprimer la section « ${s} » ?`;
+                      ? `Delete section "${s}"? Its ${count} item${count > 1 ? 's' : ''} will be moved.`
+                      : `Delete section "${s}"?`;
                     if (window.confirm(msg)) removeSection(s);
                   }}
                   disabled={sections.length <= 1}
@@ -519,7 +607,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
                   onMouseEnter={e => { if (sections.length > 1) e.currentTarget.style.background = colors.surface2; }}
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}
                 >
-                  Supprimer
+                  Delete
                 </button>
               </div>
             )}
@@ -532,7 +620,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
               value={newSection}
               onChange={(e) => setNewSection(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") addSection(); if (e.key === "Escape") setAddingSectionOpen(false); }}
-              placeholder="Nouvelle section"
+              placeholder="New section"
               style={{ ...inputStyle, fontSize: fontSizes.sm, width: 130, padding: "3px 8px" }}
             />
             <button onClick={addSection} style={{ ...buttonPrimaryStyle, padding: "3px 10px" }}>
@@ -551,7 +639,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
           display: 'inline-flex', borderRadius: radii.md, overflow: 'hidden',
           border: `1px solid ${colors.border}`,
         }}>
-          {([{ id: 'bySection' as const, label: 'Sections' }, { id: 'byCategory' as const, label: 'Catégories' }]).map(v => (
+          {([{ id: 'bySection' as const, label: 'Sections' }, { id: 'byCategory' as const, label: 'Categories' }]).map(v => (
             <button
               key={v.id}
               onClick={() => setViewMode(v.id)}
@@ -590,10 +678,10 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
         display: "flex", gap: spacing.sm, justifyContent: "flex-end",
       }}>
         <button onClick={handleImport} style={buttonStyle}>
-          📥 Importer JSON
+          📥 Import JSON
         </button>
         <button onClick={handleExport} style={buttonPrimaryStyle}>
-          📤 Exporter JSON
+          📤 Export JSON
         </button>
       </div>
     </div>

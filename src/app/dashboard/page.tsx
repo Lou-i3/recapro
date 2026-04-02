@@ -8,7 +8,7 @@ import { colors, fonts, fontSizes, spacing } from '../../lib/theme';
 export default function DashboardPage() {
   const { projects, loading } = useAllProjects();
 
-  if (loading) return <div style={{ color: colors.textMuted }}>Chargement…</div>;
+  if (loading) return <div style={{ color: colors.textMuted }}>Loading…</div>;
 
   return (
     <div style={{ fontFamily: fonts.body, maxWidth: 900, padding: spacing.xxl, background: colors.bgContent, minHeight: '100%' }}>
@@ -21,7 +21,7 @@ export default function DashboardPage() {
       <h3 style={{
         color: colors.text, fontWeight: 600, marginTop: 32, marginBottom: spacing.md, fontSize: fontSizes.lg,
       }}>
-        Activité récente
+        Recent activity
       </h3>
 
       <ActivityFeed projects={projects} />

@@ -21,7 +21,7 @@ export default function ActivityFeed({ projects }: ActivityFeedProps) {
   if (recent.length === 0) {
     return (
       <p style={{ color: colors.textMuted, fontStyle: 'italic', fontSize: fontSizes.base }}>
-        Aucune activité récente.
+        No recent activity.
       </p>
     );
   }
@@ -33,7 +33,7 @@ export default function ActivityFeed({ projects }: ActivityFeedProps) {
         const isTerminal = COMPLETED_STATUSES.has(item.status);
         const statusDef = (STATUS_BY_CATEGORY[item.category] || []).find(s => s.id === item.status);
         const date = item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+          ? new Date(item.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
           : '';
         return (
           <Link
@@ -57,7 +57,7 @@ export default function ActivityFeed({ projects }: ActivityFeedProps) {
               textDecoration: isTerminal ? 'line-through' : 'none',
               textDecorationColor: colors.textMuted,
             }}>
-              {item.text || 'Sans titre'}
+              {item.text || 'Untitled'}
             </span>
             {statusDef && (
               <span style={{

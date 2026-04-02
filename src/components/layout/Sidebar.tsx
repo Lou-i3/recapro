@@ -100,23 +100,30 @@ export default function Sidebar({ projects, onCreateProject, onDeleteProject, on
         fontWeight: 700,
         color: colors.text,
         letterSpacing: '-0.02em',
+        display: 'flex',
+        alignItems: 'center',
+        gap: spacing.sm,
       }}>
-        Project Status
+        <span style={{
+          width: 12, height: 12, borderRadius: '50%',
+          background: '#7C3AED', flexShrink: 0,
+        }} />
+        RécaPro
       </div>
 
       <Link href="/dashboard" style={styleFor('/dashboard', false)}>
         Dashboard
       </Link>
 
-      <div style={sectionTitle}>Mes tâches</div>
+      <div style={sectionTitle}>My tasks</div>
       <Link href="/tasks/by-project" style={styleFor('/tasks/by-project', true)}>
-        Par projet
+        By project
       </Link>
       <Link href="/tasks/in-progress" style={styleFor('/tasks/in-progress', true)}>
-        En cours
+        In progress
       </Link>
 
-      <div style={sectionTitle}>Mes projets</div>
+      <div style={sectionTitle}>My projects</div>
       {projects.map(p => (
         <div key={p.slug} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
           <Link
@@ -144,7 +151,7 @@ export default function Sidebar({ projects, onCreateProject, onDeleteProject, on
             }}>
               <button
                 onClick={() => {
-                  if (window.confirm(`Supprimer « ${p.projectName} » ?`)) {
+                  if (window.confirm(`Delete "${p.projectName}"?`)) {
                     onDeleteProject(p.slug);
                     setMenuOpen(null);
                     router.push('/dashboard');
@@ -160,7 +167,7 @@ export default function Sidebar({ projects, onCreateProject, onDeleteProject, on
                 onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
                 onMouseLeave={e => e.currentTarget.style.background = 'none'}
               >
-                Supprimer
+                Delete
               </button>
             </div>
           )}
@@ -177,7 +184,7 @@ export default function Sidebar({ projects, onCreateProject, onDeleteProject, on
               if (e.key === 'Enter') handleCreate();
               if (e.key === 'Escape') { setCreating(false); setNewName(''); }
             }}
-            placeholder="Nom du projet…"
+            placeholder="Project name…"
             style={{ ...inputStyle, width: '100%', fontSize: fontSizes.base }}
           />
         </div>
@@ -194,7 +201,7 @@ export default function Sidebar({ projects, onCreateProject, onDeleteProject, on
             padding: `${spacing.sm}px 28px`,
           }}
         >
-          + Nouveau projet
+          + New project
         </button>
       )}
 
@@ -219,7 +226,7 @@ export default function Sidebar({ projects, onCreateProject, onDeleteProject, on
         onMouseLeave={e => e.currentTarget.style.color = colors.textMuted}
       >
         <span style={{ fontSize: fontSizes.md }}>◀</span>
-        Réduire
+        Collapse
       </button>
     </nav>
   );

@@ -35,7 +35,7 @@ export default function StatsSection({ projects }: StatsSectionProps) {
 
       {projects.length > 0 && (
         <div style={cardStyle}>
-          <div style={{ ...labelStyle, marginBottom: spacing.md }}>Par projet</div>
+          <div style={{ ...labelStyle, marginBottom: spacing.md }}>By project</div>
           {projects.map(p => {
             const pItems = (p.items || []).filter(i => !i.parentId);
             const pDone = pItems.filter(i => COMPLETED_STATUSES.has(i.status)).length;

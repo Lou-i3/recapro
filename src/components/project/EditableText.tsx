@@ -32,7 +32,7 @@ export default function EditableText({ value, onChange, placeholder, className, 
           className={`${className || ''} markdown-content`}
           onClick={() => setEditing(true)}
           style={{ cursor: "text", minWidth: 40, fontSize: 'inherit', lineHeight: 1.6 }}
-          title="Cliquer pour modifier"
+          title="Click to edit"
         >
           <Markdown remarkPlugins={[remarkGfm]}>{value}</Markdown>
         </div>

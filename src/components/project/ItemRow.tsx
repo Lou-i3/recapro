@@ -4,7 +4,8 @@ import { useState, useRef, useEffect, type ReactNode } from "react";
 import EditableText from "./EditableText";
 import PriorityDot from "./PriorityDot";
 import StatusBadge from "./StatusBadge";
-import type { Item, Category, PriorityId, CategoryId } from "../../types";
+import LinkSection from "./LinkSection";
+import type { Item, Category, PriorityId, CategoryId, ItemLink, LinkType } from "../../types";
 import { colors, fonts, fontSizes, spacing, radii, transitions, shadows } from "../../lib/theme";
 
 interface DragHandlers {
@@ -23,11 +24,20 @@ interface ItemRowProps {
   doneCount: number;
   onAddChild: () => void;
   isChild: boolean;
+  allItems: Item[];
+  reverseLinks: { sourceId: string; type: LinkType }[];
+  onScrollToItem: (itemId: string) => void;
+  highlighted: boolean;
+  onAddLinkedItem: (categoryId: CategoryId, linkType: LinkType) => void;
+  onAddLink: (link: ItemLink) => void;
+  onRemoveLink: (targetId: string, type: LinkType) => void;
 }
 
 export default function ItemRow({
   item, onUpdate, onDelete, sections, categories, dragHandlers,
   children, childCount, doneCount, onAddChild, isChild,
+  allItems, reverseLinks, onScrollToItem, highlighted,
+  onAddLinkedItem, onAddLink, onRemoveLink,
 }: ItemRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [childrenOpen, setChildrenOpen] = useState(true);
@@ -37,6 +47,9 @@ export default function ItemRow({
   const cat = categories.find(c => c.id === item.category) || categories[0];
   const isDimmed = item.status === 'closed';
   const hasChildren = childCount > 0;
+
+  const totalLinks = (item.links?.length || 0) + reverseLinks.length;
+  const hasContent = !!item.note || totalLinks > 0;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -57,19 +70,21 @@ export default function ItemRow({
   };
 
   return (
-    <div>
+    <div id={`item-${item.id}`}>
       <div
         draggable={!isChild}
         {...(isChild ? {} : dragHandlers)}
         style={{
-          background: isDimmed ? colors.surface1 : colors.surface2,
+          background: highlighted
+            ? `${colors.blue}18`
+            : isDimmed ? colors.surface1 : colors.surface2,
           borderRadius: radii.lg,
           padding: `${spacing.sm}px ${spacing.md}px`,
           marginBottom: 2,
           marginLeft: isChild ? 24 : 0,
           color: isDimmed ? colors.textMuted : colors.text,
           borderLeft: `3px solid ${cat.color}`,
-          transition: transitions.normal,
+          transition: 'background 0.5s ease, color 0.2s ease',
           cursor: isChild ? 'default' : 'grab',
         }}
       >
@@ -84,6 +99,16 @@ export default function ItemRow({
               }}
             >
               {childrenOpen ? '▼' : '▶'}
+            </span>
+          )}
+
+          {item.shortId && (
+            <span style={{
+              fontSize: fontSizes.xs, fontFamily: fonts.mono,
+              color: cat.color, opacity: 0.7, flexShrink: 0,
+              minWidth: 28,
+            }}>
+              {item.shortId}
             </span>
           )}
 
@@ -103,7 +128,7 @@ export default function ItemRow({
             <EditableText
               value={item.text}
               onChange={(t) => onUpdate({ text: t })}
-              placeholder="Nouvel élément…"
+              placeholder="New item…"
             />
           </div>
 
@@ -125,7 +150,7 @@ export default function ItemRow({
                 cursor: 'pointer', flexShrink: 0,
                 maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}
-              title="Modifier l'owner"
+              title="Edit owner"
             >
               @{item.owner}
             </span>
@@ -154,14 +179,27 @@ export default function ItemRow({
           )}
 
           <span style={{ display: "flex", alignItems: "center", gap: spacing.xs, flexShrink: 0 }}>
-            <button onClick={() => setExpanded(!expanded)} style={{
-              background: "none", border: "none",
-              color: item.note ? colors.purple : colors.dimmed,
-              cursor: "pointer", fontSize: fontSizes.md, padding: "2px 4px",
-              transition: transitions.fast,
-            }} title="Annexe / note">
-              📎
-            </button>
+            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+              <button onClick={() => setExpanded(!expanded)} style={{
+                background: "none", border: "none",
+                color: hasContent ? colors.purple : colors.dimmed,
+                cursor: "pointer", fontSize: fontSizes.md, padding: "2px 4px",
+                transition: transitions.fast,
+              }} title="Links & notes">
+                📎
+              </button>
+              {totalLinks > 0 && (
+                <span style={{
+                  position: 'absolute', top: -4, right: -2,
+                  fontSize: 9, fontFamily: fonts.mono, fontWeight: 700,
+                  background: colors.purple, color: '#fff',
+                  borderRadius: '50%', width: 14, height: 14,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {totalLinks}
+                </span>
+              )}
+            </span>
 
             <span ref={menuRef} style={{ position: 'relative' }}>
               <button
@@ -188,7 +226,7 @@ export default function ItemRow({
                     onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
                     onMouseLeave={e => e.currentTarget.style.background = 'none'}
                   >
-                    {item.owner ? `Modifier owner (@${item.owner})` : 'Ajouter un owner'}
+                    {item.owner ? `Edit owner (@${item.owner})` : 'Add owner'}
                   </button>
 
                   {!isChild && (
@@ -198,12 +236,12 @@ export default function ItemRow({
                       onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
                       onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
-                      Ajouter un sous-élément
+                      Add sub-item
                     </button>
                   )}
 
                   <div style={{ padding: `${spacing.xs}px ${spacing.md}px`, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                    <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, whiteSpace: 'nowrap' }}>Catégorie :</span>
+                    <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, whiteSpace: 'nowrap' }}>Category:</span>
                     <select
                       value={item.category}
                       onChange={(e) => { onUpdate({ category: e.target.value as CategoryId }); setMenuOpen(false); }}
@@ -218,7 +256,7 @@ export default function ItemRow({
                   </div>
 
                   <div style={{ padding: `${spacing.xs}px ${spacing.md}px`, display: 'flex', alignItems: 'center', gap: spacing.sm }}>
-                    <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, whiteSpace: 'nowrap' }}>Section :</span>
+                    <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, whiteSpace: 'nowrap' }}>Section:</span>
                     <select
                       value={item.section}
                       onChange={(e) => { onUpdate({ section: e.target.value }); setMenuOpen(false); }}
@@ -237,17 +275,17 @@ export default function ItemRow({
                   <button
                     onClick={() => {
                       setMenuOpen(false);
-                      const label = item.text || 'cet élément';
+                      const label = item.text || 'this item';
                       const msg = hasChildren
-                        ? `Supprimer « ${label} » et ses ${childCount} sous-élément${childCount > 1 ? 's' : ''} ?`
-                        : `Supprimer « ${label} » ?`;
+                        ? `Delete "${label}" and its ${childCount} sub-item${childCount > 1 ? 's' : ''}?`
+                        : `Delete "${label}"?`;
                       if (window.confirm(msg)) onDelete();
                     }}
                     style={{ ...menuItemStyle, color: colors.red }}
                     onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
                     onMouseLeave={e => e.currentTarget.style.background = 'none'}
                   >
-                    Supprimer
+                    Delete
                   </button>
                 </div>
               )}
@@ -257,10 +295,21 @@ export default function ItemRow({
 
         {expanded && (
           <div style={{ marginTop: spacing.sm, marginLeft: hasChildren ? 14 : 0 }}>
+            <LinkSection
+              item={item}
+              allItems={allItems}
+              reverseLinks={reverseLinks}
+              onAddLink={onAddLink}
+              onRemoveLink={onRemoveLink}
+              onScrollToItem={onScrollToItem}
+              onAddLinkedItem={onAddLinkedItem}
+              onUnblock={() => onUpdate({ status: 'todo' })}
+              categories={categories}
+            />
             <EditableText
               value={item.note}
               onChange={(n) => onUpdate({ note: n })}
-              placeholder="Ajouter une note / annexe…"
+              placeholder="Add a note…"
               multiline
             />
           </div>

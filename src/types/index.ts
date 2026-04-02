@@ -9,6 +9,13 @@ export type ActionStatus = 'todo' | 'in-progress' | 'to-review' | 'done' | 'bloc
 export type QuestionStatus = 'to-ask' | 'to-adjust' | 'answered' | 'closed';
 export type ItemStatus = DecisionStatus | ActionStatus | QuestionStatus;
 
+export type LinkType = 'depends-on' | 'stems-from' | 'related';
+
+export interface ItemLink {
+  targetId: string;
+  type: LinkType;
+}
+
 // ─── Domain Entities ───
 
 export interface Item {
@@ -22,6 +29,9 @@ export interface Item {
   note: string;
   parentId: string | null;
   createdAt: number;
+  shortId: string;
+  links: ItemLink[];
+  order: number;
 }
 
 export interface ItemWithProject extends Item {

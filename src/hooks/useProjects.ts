@@ -12,7 +12,7 @@ export function useProjects() {
       const data = await fetchProjects();
       setProjects(data);
     } catch (err) {
-      console.error('Erreur chargement projets:', err);
+      console.error('Error loading projects:', err);
     } finally {
       setLoading(false);
     }
@@ -29,7 +29,7 @@ export function useProjects() {
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-]/g, '')
-      || `projet-${Date.now()}`;
+      || `project-${Date.now()}`;
 
     const data = await apiCreate({ slug, projectName: name });
     await refresh();
