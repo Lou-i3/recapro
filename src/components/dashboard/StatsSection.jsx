@@ -1,10 +1,12 @@
+import { TERMINAL_STATUSES } from '../../lib/constants';
 import { colors, fonts, fontSizes, spacing, radii, labelStyle, cardStyle } from '../../lib/theme';
 
 export default function StatsSection({ projects }) {
   const allItems = projects.flatMap(p => p.items || []);
-  const total = allItems.length;
-  const done = allItems.filter(i => i.done).length;
-  const high = allItems.filter(i => i.priority === 'high' && !i.done).length;
+  const rootItems = allItems.filter(i => !i.parentId);
+  const total = rootItems.length;
+  const done = rootItems.filter(i => TERMINAL_STATUSES.has(i.status)).length;
+  const high = rootItems.filter(i => i.priority === 'high' && !TERMINAL_STATUSES.has(i.status)).length;
   const rate = total > 0 ? Math.round((done / total) * 100) : 0;
 
   const statCard = (label, value, color = colors.text) => (
@@ -18,18 +20,18 @@ export default function StatsSection({ projects }) {
     <div>
       <div style={{ display: 'flex', gap: spacing.md, flexWrap: 'wrap', marginBottom: spacing.xxl }}>
         {statCard('Total items', total)}
-        {statCard('Terminés', done, colors.green)}
-        {statCard('Complétion', `${rate}%`, colors.blue)}
-        {statCard('Priorité haute', high, high > 0 ? colors.red : colors.textMuted)}
-        {statCard('Projets', projects.length)}
+        {statCard('Completed', done, colors.green)}
+        {statCard('Completion', `${rate}%`, colors.blue)}
+        {statCard('High priority', high, high > 0 ? colors.red : colors.textMuted)}
+        {statCard('Projects', projects.length)}
       </div>
 
       {projects.length > 0 && (
         <div style={cardStyle}>
           <div style={{ ...labelStyle, marginBottom: spacing.md }}>Par projet</div>
           {projects.map(p => {
-            const pItems = p.items || [];
-            const pDone = pItems.filter(i => i.done).length;
+            const pItems = (p.items || []).filter(i => !i.parentId);
+            const pDone = pItems.filter(i => TERMINAL_STATUSES.has(i.status)).length;
             const pTotal = pItems.length;
             const pRate = pTotal > 0 ? Math.round((pDone / pTotal) * 100) : 0;
             return (

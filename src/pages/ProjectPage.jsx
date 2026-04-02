@@ -19,8 +19,11 @@ export default function ProjectPage() {
       display: 'flex',
       height: '100%',
       position: 'relative',
+      overflow: 'hidden',
     }}>
-      <ProjectView project={data} onSave={save} />
+      <div style={{ flex: 1, overflow: 'auto', padding: spacing.xxl, minWidth: 0 }}>
+        <ProjectView project={data} onSave={save} />
+      </div>
 
       {notesVisible ? (
         <MarkdownPanel

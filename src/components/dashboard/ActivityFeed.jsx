@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
-import { CATEGORIES } from '../../lib/constants';
+import { CATEGORIES, STATUS_BY_CATEGORY, TERMINAL_STATUSES } from '../../lib/constants';
 import { colors, fonts, fontSizes, spacing, radii, transitions } from '../../lib/theme';
 
 export default function ActivityFeed({ projects }) {
   const allItems = projects.flatMap(p =>
-    (p.items || []).map(item => ({ ...item, _projectSlug: p.slug, _projectName: p.projectName }))
+    (p.items || []).filter(i => !i.parentId).map(item => ({ ...item, _projectSlug: p.slug, _projectName: p.projectName }))
   );
 
   const recent = allItems
@@ -23,6 +23,8 @@ export default function ActivityFeed({ projects }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {recent.map(item => {
         const cat = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[0];
+        const isTerminal = TERMINAL_STATUSES.has(item.status);
+        const statusDef = (STATUS_BY_CATEGORY[item.category] || []).find(s => s.id === item.status);
         const date = item.createdAt
           ? new Date(item.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
           : '';
@@ -43,13 +45,21 @@ export default function ActivityFeed({ projects }) {
           >
             <span style={{ fontSize: fontSizes.md }}>{cat.icon}</span>
             <span style={{
-              flex: 1, fontSize: fontSizes.base, color: item.done ? colors.textMuted : colors.text,
+              flex: 1, fontSize: fontSizes.base, color: isTerminal ? colors.textMuted : colors.text,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              textDecoration: item.done ? 'line-through' : 'none',
+              textDecoration: isTerminal ? 'line-through' : 'none',
               textDecorationColor: colors.textMuted,
             }}>
               {item.text || 'Sans titre'}
             </span>
+            {statusDef && (
+              <span style={{
+                fontSize: fontSizes.xs, fontFamily: fonts.mono,
+                color: statusDef.color, flexShrink: 0,
+              }}>
+                {statusDef.label}
+              </span>
+            )}
             <span style={{
               fontSize: fontSizes.sm, color: colors.textMuted,
               fontFamily: fonts.mono, flexShrink: 0,

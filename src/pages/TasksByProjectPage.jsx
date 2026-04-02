@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAllProjects } from '../hooks/useAllProjects';
-import { CATEGORIES } from '../lib/constants';
+import { CATEGORIES, STATUS_BY_CATEGORY, TERMINAL_STATUSES } from '../lib/constants';
 import { colors, fonts, fontSizes, spacing, radii, transitions } from '../lib/theme';
 
 export default function TasksByProjectPage() {
@@ -20,12 +20,12 @@ export default function TasksByProjectPage() {
   }
 
   return (
-    <div style={{ fontFamily: fonts.body, maxWidth: 900 }}>
+    <div style={{ fontFamily: fonts.body, maxWidth: 900, padding: spacing.xxl }}>
       <h2 style={{ color: colors.text, fontWeight: 600, marginBottom: spacing.xl, fontSize: fontSizes.xl }}>
         Tâches par projet
       </h2>
       {projects.map(p => {
-        const items = p.items || [];
+        const items = (p.items || []).filter(i => !i.parentId);
         const isCollapsed = collapsed[p.slug];
         return (
           <div key={p.slug} style={{ marginBottom: spacing.xl }}>
@@ -55,33 +55,39 @@ export default function TasksByProjectPage() {
                   <p style={{ fontSize: fontSizes.sm, color: colors.textMuted, paddingLeft: spacing.sm }}>Aucun élément</p>
                 ) : items.map(item => {
                   const cat = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[0];
+                  const isTerminal = TERMINAL_STATUSES.has(item.status);
+                  const statusDef = (STATUS_BY_CATEGORY[item.category] || []).find(s => s.id === item.status);
                   return (
                     <div key={item.id} style={{
                       display: 'flex', alignItems: 'center', gap: spacing.sm,
                       padding: `${spacing.sm}px ${spacing.md}px`,
                       background: colors.surface1, borderRadius: radii.md,
                       borderLeft: `3px solid ${cat.color}`,
-                      color: item.done ? colors.textMuted : colors.text,
+                      color: isTerminal ? colors.textMuted : colors.text,
                       fontSize: fontSizes.base,
                       transition: transitions.fast,
                     }}>
                       <span style={{ fontSize: fontSizes.sm }}>{cat.icon}</span>
                       <span style={{
                         flex: 1,
-                        textDecoration: item.done ? 'line-through' : 'none',
+                        textDecoration: isTerminal ? 'line-through' : 'none',
                         textDecorationColor: colors.textMuted,
                       }}>
                         {item.text || 'Sans titre'}
                       </span>
+                      {statusDef && (
+                        <span style={{
+                          fontSize: fontSizes.xs, fontFamily: fonts.mono,
+                          color: statusDef.color,
+                          background: statusDef.color + '18',
+                          padding: '1px 6px', borderRadius: radii.sm,
+                        }}>
+                          {statusDef.label}
+                        </span>
+                      )}
                       {item.owner && (
                         <span style={{ fontSize: fontSizes.sm, color: colors.blue }}>@{item.owner}</span>
                       )}
-                      <span style={{
-                        fontSize: fontSizes.xs, color: item.done ? colors.green : colors.textMuted,
-                        fontFamily: fonts.mono,
-                      }}>
-                        {item.done ? '✓' : '○'}
-                      </span>
                     </div>
                   );
                 })}

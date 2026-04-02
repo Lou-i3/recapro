@@ -9,7 +9,7 @@ export default function DashboardPage() {
   if (loading) return <div style={{ color: colors.textMuted }}>Chargement…</div>;
 
   return (
-    <div style={{ fontFamily: fonts.body, maxWidth: 900 }}>
+    <div style={{ fontFamily: fonts.body, maxWidth: 900, padding: spacing.xxl }}>
       <h2 style={{ color: colors.text, fontWeight: 600, marginBottom: spacing.xl, fontSize: fontSizes.xl }}>
         Dashboard
       </h2>

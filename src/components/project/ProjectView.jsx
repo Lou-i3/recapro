@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CATEGORIES, emptyItem } from "../../lib/constants";
+import { CATEGORIES, TERMINAL_STATUSES, emptyItem } from "../../lib/constants";
 import { exportProjectJSON, importProjectJSON } from "../../lib/storage";
 import { colors, fonts, fontSizes, spacing, radii, transitions, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle } from "../../lib/theme";
 import EditableText from "./EditableText";
@@ -29,9 +29,10 @@ export default function ProjectView({ project, onSave }) {
 
   const updateItem = (id, patch) =>
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
-  const deleteItem = (id) => setItems((prev) => prev.filter((it) => it.id !== id));
-  const addItem = (categoryId, section) =>
-    setItems((prev) => [...prev, emptyItem(categoryId, section)]);
+  const deleteItem = (id) =>
+    setItems((prev) => prev.filter((it) => it.id !== id && it.parentId !== id));
+  const addItem = (categoryId, section, parentId = null) =>
+    setItems((prev) => [...prev, emptyItem(categoryId, section, parentId)]);
 
   const addSection = () => {
     const name = newSection.trim();
@@ -52,13 +53,22 @@ export default function ProjectView({ project, onSave }) {
   const toggleCollapse = (key) =>
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  const filteredItems = filterDone ? items.filter((i) => !i.done) : items;
+  const isTerminal = (item) => TERMINAL_STATUSES.has(item.status);
+  const filteredItems = filterDone ? items.filter((i) => !isTerminal(i)) : items;
 
+  // Root items only (no parentId) for counting
+  const rootItems = items.filter(i => !i.parentId);
   const stats = {
-    total: items.length,
-    done: items.filter((i) => i.done).length,
-    high: items.filter((i) => i.priority === "high" && !i.done).length,
+    total: rootItems.length,
+    done: rootItems.filter(i => isTerminal(i)).length,
+    high: rootItems.filter(i => i.priority === "high" && !isTerminal(i)).length,
   };
+
+  // ─── Helpers for parent/child grouping ───
+  const getChildren = (parentId) => filteredItems.filter(i => i.parentId === parentId);
+  const getRootItems = (list) => list.filter(i => !i.parentId);
+  const getChildCount = (parentId) => items.filter(i => i.parentId === parentId).length;
+  const getDoneChildCount = (parentId) => items.filter(i => i.parentId === parentId && isTerminal(i)).length;
 
   // ─── Drag & drop ───
   const handleDragStart = (e, item) => {
@@ -90,36 +100,63 @@ export default function ProjectView({ project, onSave }) {
     } catch {}
   };
 
-  // ─── Render items list ───
-  const renderItems = (list, sectionName, categoryId) => (
-    <div
-      onDragOver={handleDragOver}
-      onDrop={(e) => handleDrop(e, categoryId, sectionName)}
-      style={{ minHeight: 30 }}
-    >
-      {list.map((item) => (
-        <ItemRow
-          key={item.id}
-          item={item}
-          onUpdate={(patch) => updateItem(item.id, patch)}
-          onDelete={() => deleteItem(item.id)}
-          sections={sections}
-          categories={CATEGORIES}
-          dragHandlers={{
-            onDragStart: (e) => handleDragStart(e, item),
-          }}
-        />
-      ))}
-      <button
-        onClick={() => addItem(categoryId, sectionName)}
-        style={buttonDashedStyle}
-        onMouseEnter={(e) => { e.target.style.borderColor = colors.borderInput; e.target.style.color = colors.textSecondary; }}
-        onMouseLeave={(e) => { e.target.style.borderColor = colors.borderDashed; e.target.style.color = colors.dimmed; }}
+  // ─── Render a single item with its children ───
+  const renderItemWithChildren = (item, sectionName, categoryId) => {
+    const childItems = getChildren(item.id);
+    return (
+      <ItemRow
+        key={item.id}
+        item={item}
+        onUpdate={(patch) => updateItem(item.id, patch)}
+        onDelete={() => deleteItem(item.id)}
+        sections={sections}
+        categories={CATEGORIES}
+        dragHandlers={{ onDragStart: (e) => handleDragStart(e, item) }}
+        childCount={getChildCount(item.id)}
+        doneCount={getDoneChildCount(item.id)}
+        onAddChild={() => addItem(item.category, item.section, item.id)}
+        isChild={false}
       >
-        + Ajouter
-      </button>
-    </div>
-  );
+        {childItems.map(child => (
+          <ItemRow
+            key={child.id}
+            item={child}
+            onUpdate={(patch) => updateItem(child.id, patch)}
+            onDelete={() => deleteItem(child.id)}
+            sections={sections}
+            categories={CATEGORIES}
+            dragHandlers={{}}
+            childCount={0}
+            doneCount={0}
+            onAddChild={() => {}}
+            isChild={true}
+          />
+        ))}
+      </ItemRow>
+    );
+  };
+
+  // ─── Render items list ───
+  const renderItems = (list, sectionName, categoryId) => {
+    const roots = getRootItems(list);
+    return (
+      <div
+        onDragOver={handleDragOver}
+        onDrop={(e) => handleDrop(e, categoryId, sectionName)}
+        style={{ minHeight: 30 }}
+      >
+        {roots.map((item) => renderItemWithChildren(item, sectionName, categoryId))}
+        <button
+          onClick={() => addItem(categoryId, sectionName)}
+          style={buttonDashedStyle}
+          onMouseEnter={(e) => { e.target.style.borderColor = colors.borderInput; e.target.style.color = colors.textSecondary; }}
+          onMouseLeave={(e) => { e.target.style.borderColor = colors.borderDashed; e.target.style.color = colors.dimmed; }}
+        >
+          + Ajouter
+        </button>
+      </div>
+    );
+  };
 
   // ─── View: by section ───
   const renderBySection = () =>
@@ -140,7 +177,7 @@ export default function ProjectView({ project, onSave }) {
               {section}
             </span>
             <span style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginLeft: spacing.xs }}>
-              {sectionItems.length} élément{sectionItems.length !== 1 ? "s" : ""}
+              {getRootItems(sectionItems).length} élément{getRootItems(sectionItems).length !== 1 ? "s" : ""}
             </span>
             <button onClick={() => removeSection(section)} style={{
               marginLeft: "auto", background: "none", border: "none",
@@ -154,7 +191,7 @@ export default function ProjectView({ project, onSave }) {
           </div>
           {!collapsed && CATEGORIES.map((cat) => {
             const catItems = sectionItems.filter((i) => i.category === cat.id);
-            if (catItems.length === 0) {
+            if (getRootItems(catItems).length === 0 && catItems.length === 0) {
               return (
                 <div key={cat.id} style={{ marginBottom: spacing.sm }}
                   onDragOver={handleDragOver}
@@ -200,7 +237,7 @@ export default function ProjectView({ project, onSave }) {
             <span style={{ fontWeight: 700, fontSize: fontSizes.lg, color: cat.color }}>
               {cat.label}
             </span>
-            <span style={{ fontSize: fontSizes.sm, color: colors.textMuted }}>{catItems.length}</span>
+            <span style={{ fontSize: fontSizes.sm, color: colors.textMuted }}>{getRootItems(catItems).length}</span>
           </div>
           {!collapsed && sections.map((section) => {
             const sItems = catItems.filter((i) => i.section === section);
@@ -212,7 +249,7 @@ export default function ProjectView({ project, onSave }) {
                 <div style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginBottom: 2, paddingLeft: spacing.xs }}>
                   📁 {section}
                 </div>
-                {sItems.length > 0 ? renderItems(sItems, section, cat.id) : (
+                {getRootItems(sItems).length > 0 ? renderItems(sItems, section, cat.id) : (
                   <button onClick={() => addItem(cat.id, section)} style={{
                     ...buttonDashedStyle, padding: "3px 10px", fontSize: fontSizes.sm, borderColor: colors.borderLight,
                   }}>+</button>
@@ -257,11 +294,11 @@ export default function ProjectView({ project, onSave }) {
         border: `1px solid ${colors.borderLight}`,
       }}>
         <span style={{ fontFamily: fonts.mono, fontSize: fontSizes.sm, color: colors.textSecondary }}>
-          {stats.done}/{stats.total} terminé{stats.done !== 1 ? "s" : ""}
+          {stats.done}/{stats.total} completed
         </span>
         {stats.high > 0 && (
           <span style={{ fontFamily: fonts.mono, fontSize: fontSizes.sm, color: colors.red }}>
-            {stats.high} priorité{stats.high !== 1 ? "s" : ""} haute{stats.high !== 1 ? "s" : ""}
+            {stats.high} high priority
           </span>
         )}
         <span style={{ flex: 1 }} />

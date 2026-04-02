@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAllProjects } from '../hooks/useAllProjects';
-import { CATEGORIES, PRIORITY_LEVELS } from '../lib/constants';
+import { CATEGORIES, PRIORITY_LEVELS, STATUS_BY_CATEGORY, TERMINAL_STATUSES } from '../lib/constants';
 import { colors, fonts, fontSizes, spacing, radii, transitions } from '../lib/theme';
 
 export default function TasksInProgressPage() {
@@ -12,13 +12,13 @@ export default function TasksInProgressPage() {
   const inProgress = projects
     .flatMap(p =>
       (p.items || [])
-        .filter(i => !i.done)
+        .filter(i => !i.parentId && !TERMINAL_STATUSES.has(i.status))
         .map(i => ({ ...i, _projectSlug: p.slug, _projectName: p.projectName }))
     )
     .sort((a, b) => (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1));
 
   return (
-    <div style={{ fontFamily: fonts.body, maxWidth: 900 }}>
+    <div style={{ fontFamily: fonts.body, maxWidth: 900, padding: spacing.xxl }}>
       <h2 style={{ color: colors.text, fontWeight: 600, marginBottom: spacing.sm, fontSize: fontSizes.xl }}>
         Tâches en cours
       </h2>
@@ -35,6 +35,7 @@ export default function TasksInProgressPage() {
           {inProgress.map(item => {
             const cat = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[0];
             const prio = PRIORITY_LEVELS.find(l => l.id === item.priority);
+            const statusDef = (STATUS_BY_CATEGORY[item.category] || []).find(s => s.id === item.status);
             return (
               <Link
                 key={item.id}
@@ -61,6 +62,17 @@ export default function TasksInProgressPage() {
                 <span style={{ flex: 1, color: colors.text }}>
                   {item.text || 'Sans titre'}
                 </span>
+                {statusDef && (
+                  <span style={{
+                    fontSize: fontSizes.xs, fontFamily: fonts.mono,
+                    color: statusDef.color,
+                    background: statusDef.color + '18',
+                    padding: '1px 6px', borderRadius: radii.sm,
+                    flexShrink: 0,
+                  }}>
+                    {statusDef.label}
+                  </span>
+                )}
                 <span style={{
                   fontSize: fontSizes.sm, color: colors.textMuted,
                   fontFamily: fonts.mono, flexShrink: 0,
