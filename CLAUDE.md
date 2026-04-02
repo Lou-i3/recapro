@@ -2,92 +2,119 @@
 
 ## Présentation
 
-Application React de suivi de statut projet. Permet de gérer des éléments (décisions, actions, questions) organisés par sections et catégories, avec priorité, assignation, notes/annexes, drag & drop, et persistance locale.
+Application Next.js de suivi de statut projet. Gère des éléments (décisions, actions, questions) organisés par sections et catégories, avec priorité, assignation, notes markdown, sous-éléments, drag & drop, et persistance filesystem.
 
 ## Stack technique
 
-- **Framework** : React 18+ (Vite)
-- **Langage** : JavaScript (JSX)
-- **Style** : CSS-in-JS (inline styles), dark theme (#16161A)
+- **Framework** : Next.js 16 (App Router)
+- **Langage** : TypeScript (strict)
+- **UI** : React 19, functional components avec hooks
+- **Style** : Inline styles avec design tokens (`src/lib/theme.ts`), dark theme
 - **Polices** : DM Sans (body), Space Mono (monospace/labels)
-- **Persistance** : localStorage (clé `project-status-data`)
-- **Build** : Vite
+- **Persistance** : Fichiers JSON dans `data/` via API Routes
+- **Build** : Next.js (Turbopack en dev)
 
 ## Structure du projet
 
 ```
 src/
-├── App.jsx                  # Point d'entrée, render <ProjectStatus />
-├── main.jsx                 # Mount React
-├── index.css                # Reset CSS minimal + import fonts
+├── app/                        # Next.js App Router
+│   ├── layout.tsx              # Root layout (html, body, ClientLayout)
+│   ├── page.tsx                # Redirect → /dashboard
+│   ├── globals.css             # Reset CSS + styles markdown
+│   ├── api/projects/
+│   │   ├── route.ts            # GET (list), POST (create)
+│   │   └── [slug]/route.ts     # GET, PUT, DELETE
+│   ├── dashboard/page.tsx
+│   ├── project/[slug]/page.tsx
+│   └── tasks/
+│       ├── by-project/page.tsx
+│       └── in-progress/page.tsx
 ├── components/
-│   ├── ProjectStatus.jsx    # Composant principal (state, layout, views)
-│   ├── ItemRow.jsx          # Ligne d'un élément (checkbox, texte, owner, note)
-│   ├── EditableText.jsx     # Champ texte inline éditable (clic → input)
-│   └── PriorityDot.jsx      # Sélecteur de priorité (pastille colorée)
+│   ├── layout/
+│   │   ├── Layout.tsx          # Client layout (contextes, sidebar, main)
+│   │   └── Sidebar.tsx         # Navigation, gestion projets
+│   ├── project/
+│   │   ├── ProjectView.tsx     # Vue principale projet (items, sections, stats)
+│   │   ├── ItemRow.tsx         # Ligne d'un élément (status, priorité, owner, menu)
+│   │   ├── EditableText.tsx    # Texte inline éditable avec preview markdown
+│   │   ├── StatusBadge.tsx     # Sélecteur de statut par catégorie
+│   │   ├── PriorityDot.tsx     # Sélecteur de priorité
+│   │   └── MarkdownPanel.tsx   # Panneau notes markdown resizable
+│   └── dashboard/
+│       ├── StatsSection.tsx    # Stats globales et par projet
+│       └── ActivityFeed.tsx    # Activité récente
+├── hooks/
+│   ├── useProject.ts           # Fetch + save debounced d'un projet
+│   ├── useProjects.ts          # Liste projets (CRUD)
+│   └── useAllProjects.ts       # Tous les projets avec données complètes
 ├── lib/
-│   ├── constants.js         # CATEGORIES, PRIORITY_LEVELS, DEFAULT_SECTIONS
-│   └── storage.js           # loadData(), saveData(), loadProjects(), etc.
+│   ├── constants.ts            # CATEGORIES, PRIORITY_LEVELS, STATUS_BY_CATEGORY, emptyItem()
+│   ├── theme.ts                # Design tokens (colors, fonts, spacing, style presets)
+│   ├── api.ts                  # Client fetch wrapper (/api/projects)
+│   └── storage.ts              # localStorage legacy + export/import JSON
+└── types/
+    └── index.ts                # Types centraux (Item, Project, CategoryId, etc.)
 ```
 
 ## Commandes
 
 ```bash
 npm install        # Installer les dépendances
-npm run dev        # Serveur de dev (http://localhost:5173)
-npm run build      # Build production dans dist/
-npm run preview    # Preview du build
+npm run dev        # Serveur de dev (http://localhost:3000)
+npm run build      # Build production
+npm run start      # Serveur production
+npm run typecheck  # Vérification TypeScript (tsc --noEmit)
 ```
 
 ## Conventions
 
 - **Langue UI** : Français (labels, placeholders, messages)
 - **Nommage** : camelCase pour variables/fonctions, PascalCase pour composants
-- **Composants** : Functional components avec hooks, pas de classes
-- **State** : useState/useEffect, pas de state manager externe pour l'instant
-- **Styles** : Inline styles avec objets JS. Palette dark : fond `#16161A`, surfaces `rgba(255,255,255,0.04)`, texte `#E0DFE4`
-- **Pas de TypeScript** pour l'instant (migration possible plus tard)
+- **Composants** : Functional components avec hooks, `"use client"` sur tous les composants interactifs
+- **State** : useState/useEffect/useCallback, Context API pour état global (ProjectsContext, LayoutContext)
+- **Styles** : Inline styles avec objets JS typés (`CSSProperties`). Tokens dans `theme.ts`
+- **Navigation** : `next/link` et `next/navigation` (useRouter, usePathname, useParams)
+- **API** : Route Handlers Next.js dans `src/app/api/`
 
 ## Modèle de données
 
 ### Item
-```js
+```ts
 {
-  id: string,          // crypto.randomUUID()
-  text: string,        // Contenu de l'élément
-  done: boolean,       // Terminé ou non
-  category: string,    // "decisions" | "actions" | "questions"
-  section: string,     // Nom de la section (ex: "Général", "Technique")
-  priority: string,    // "high" | "medium" | "low"
-  owner: string,       // Assigné à (texte libre)
-  note: string,        // Note/annexe
-  createdAt: number    // Date.now()
+  id: string;           // crypto.randomUUID()
+  text: string;
+  status: ItemStatus;   // Dépend de la catégorie (ex: "todo", "in-progress", "done")
+  category: CategoryId; // "decisions" | "actions" | "questions"
+  section: string;      // Section personnalisée
+  priority: PriorityId; // "high" | "medium" | "low"
+  owner: string;
+  note: string;
+  parentId: string | null;  // Sous-éléments
+  createdAt: number;
 }
 ```
 
-### Données persistées (localStorage)
-```js
+### Project
+```ts
 {
-  projectName: string,
-  sections: string[],
-  items: Item[]
+  slug: string;
+  projectName: string;
+  sections: string[];
+  items: Item[];
+  markdown?: string;    // Notes projet en markdown
+  updatedAt?: number;
 }
 ```
 
-## Roadmap / TODO
-
-- [ ] **Multi-projets** : Sélecteur de projet, chaque projet a son propre jeu de données. Clé localStorage par projet (ex: `project-status-{slug}`). Possibilité de créer, renommer, supprimer, dupliquer un projet.
-- [ ] **Import/Export amélioré** : Import fusionné (merge) vs remplacement, export partiel (par section/catégorie), format CSV en plus de JSON.
-- [ ] **Persistance backend** : Option de sauvegarde fichier JSON sur disque (mode Electron ou API), ou sync avec un backend (Supabase, etc.)
-- [ ] **Historique / audit** : Horodatage des modifications, log des changements de statut
-- [ ] **Filtres avancés** : Par owner, par priorité, recherche texte
-- [ ] **Drag & drop amélioré** : Réordonner les items au sein d'une même liste, réordonner les sections
-- [ ] **Thème** : Toggle light/dark
-- [ ] **Export Notion** : Générer des pages Notion via l'API à partir des données
+### Statuts par catégorie
+- **Decisions** : to-discuss → to-validate → validated → closed
+- **Actions** : todo → in-progress → to-review → done / blocked → closed
+- **Questions** : to-ask → to-adjust → answered → closed
 
 ## Notes pour Claude
 
-- L'app est née comme prototype dans un artefact Claude.ai — le code initial est un monolithe JSX qu'on a découpé en composants.
-- L'utilisateur travaille dans l'écosystème M365 (SharePoint, Power Platform) et pourrait vouloir intégrer ce tracker avec Power Automate ou Graph API à terme.
-- Le format JSON d'export/import doit rester stable car il servira de contrat d'interface si on ajoute un backend ou des intégrations.
-- Priorité court terme : le multi-projets et la flexibilité import/export.
+- Les données sont stockées dans `data/{slug}.json`. Le dossier `data/` est ignoré par git.
+- Le format JSON d'export/import doit rester stable (contrat d'interface pour intégrations futures).
+- L'utilisateur travaille dans l'écosystème M365 et pourrait vouloir intégrer avec Power Automate ou Graph API.
+- Voir `docs/` pour les plans d'implémentation des prochaines features.

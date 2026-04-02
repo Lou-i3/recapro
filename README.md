@@ -1,32 +1,59 @@
-# 📋 Project Status Tracker
+# Project Status Tracker
 
-Application de suivi de statut projet — décisions, actions, questions — organisée par sections et catégories.
+Application de suivi de statut projet. Gère des décisions, actions et questions organisées par sections, avec priorités, assignation, notes et sous-éléments.
 
-## Démarrage rapide
+## Démarrage
 
 ```bash
 npm install
 npm run dev
 ```
 
-Ouvrir http://localhost:5173
+L'app est accessible sur http://localhost:3000.
 
 ## Fonctionnalités
 
-- **3 catégories** : Décisions ⚖️, Actions ⚡, Questions ❓
-- **Sections personnalisables** : Général, Technique, Budget, Planning (+ ajout libre)
-- **Priorités** : Haute / Moyenne / Basse (pastille colorée cliquable)
-- **Assignation** : Champ owner sur chaque élément
-- **Notes / Annexes** : Texte libre attaché à chaque item (📎)
-- **Drag & drop** entre sections et catégories
-- **Vues** : Par section ou par catégorie
-- **Filtres** : Masquer les éléments terminés
-- **Persistance** : localStorage + export/import JSON
+- **Multi-projets** — créer, gérer et naviguer entre plusieurs projets
+- **3 catégories** — Décisions, Actions, Questions, chacune avec ses propres statuts
+- **Sections personnalisables** — organiser les éléments par thème (Général, Technique, Budget…)
+- **Priorités et assignation** — haute/moyenne/basse, owner par élément
+- **Sous-éléments** — items enfants avec suivi de complétion
+- **Notes markdown** — panneau de notes par projet avec preview markdown
+- **Drag & drop** — déplacer les items entre sections et catégories
+- **Vues** — par section ou par catégorie, avec collapse/expand
+- **Import/Export JSON** — sauvegarder et restaurer les données
+- **Dashboard** — stats globales et activité récente
 
 ## Stack
 
-React 18 · Vite · CSS-in-JS · Dark theme
+- **Next.js 16** (App Router) + **React 19** + **TypeScript**
+- API Routes intégrées (stockage JSON sur le filesystem dans `data/`)
+- Inline styles avec design tokens (dark theme)
 
-## Voir aussi
+## Structure
 
-Le fichier `CLAUDE.md` contient les instructions pour travailler sur ce projet avec Claude Code.
+```
+src/
+├── app/                    # Pages et API Routes (Next.js App Router)
+│   ├── api/projects/       # CRUD projets (GET, POST, PUT, DELETE)
+│   ├── dashboard/          # Dashboard global
+│   ├── project/[slug]/     # Vue projet
+│   └── tasks/              # Vues tâches (par projet, en cours)
+├── components/             # Composants React
+│   ├── dashboard/          # StatsSection, ActivityFeed
+│   ├── layout/             # Layout, Sidebar
+│   └── project/            # ProjectView, ItemRow, EditableText, etc.
+├── hooks/                  # useProject, useProjects, useAllProjects
+├── lib/                    # constants, theme, api, storage
+└── types/                  # Types TypeScript centraux
+```
+
+## Roadmap
+
+- [ ] **Serveur MCP** — permettre à Claude d'interagir avec les données projet ([plan](docs/plan-mcp-server.md))
+- [ ] **Import/Export amélioré** — merge, export partiel, format CSV
+- [ ] **Historique / audit** — log des changements de statut
+- [ ] **Filtres avancés** — par owner, priorité, recherche texte
+- [ ] **Drag & drop amélioré** — réordonner les items et les sections
+- [ ] **Thème** — toggle light/dark
+- [ ] **Export Notion** — générer des pages Notion via l'API
