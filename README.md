@@ -57,3 +57,4 @@ src/
 - [ ] **Drag & drop amélioré** — réordonner les items et les sections
 - [ ] **Thème** — toggle light/dark
 - [ ] **Export Notion** — générer des pages Notion via l'API
+- [ ] **Recherche** — barre de recherche globale avec raccourcis clavier permettant de filter les items par texte, owner, priorité, etc.
