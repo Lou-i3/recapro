@@ -40,12 +40,21 @@ export default function EditableText({ value, onChange, placeholder, className, 
     }
     return (
       <span
-        className={className}
+        className={`${className || ''} markdown-content`}
         onClick={() => setEditing(true)}
         style={{ cursor: "text", minWidth: 40, display: "inline-block" }}
         title="Cliquer pour modifier"
       >
-        {value || <span style={{ color: colors.dimmed, fontStyle: "italic" }}>{placeholder}</span>}
+        {value ? (
+          <Markdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              p: ({ children }) => <span>{children}</span>,
+            }}
+          >{value}</Markdown>
+        ) : (
+          <span style={{ color: colors.dimmed, fontStyle: "italic" }}>{placeholder}</span>
+        )}
       </span>
     );
   }
