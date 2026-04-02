@@ -82,7 +82,14 @@ export default function ProjectView({ project, onSave }) {
     total: rootItems.length,
     done: rootItems.filter(i => isTerminal(i)).length,
     high: rootItems.filter(i => i.priority === "high" && !isTerminal(i)).length,
+    blocked: rootItems.filter(i => i.status === "blocked").length,
   };
+  const catStats = CATEGORIES.map(cat => {
+    const catItems = rootItems.filter(i => i.category === cat.id);
+    const done = catItems.filter(i => isTerminal(i)).length;
+    return { ...cat, total: catItems.length, done, rate: catItems.length > 0 ? Math.round((done / catItems.length) * 100) : 0 };
+  });
+  const overallRate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
 
   // ─── Helpers for parent/child grouping ───
   const getChildren = (parentId) => filteredItems.filter(i => i.parentId === parentId);
@@ -280,52 +287,133 @@ export default function ProjectView({ project, onSave }) {
       fontSize: fontSizes.base,
     }}>
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: fontSizes.xl, fontWeight: 700, marginBottom: spacing.xs }}>
-          <EditableText
-            value={projectName}
-            onChange={setProjectName}
-            placeholder="Nom du projet"
-          />
+      <div style={{ marginBottom: spacing.xxl }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: spacing.lg }}>
+          <div>
+            <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 2 }}>
+              <EditableText
+                value={projectName}
+                onChange={setProjectName}
+                placeholder="Nom du projet"
+              />
+            </div>
+            <div style={{ ...labelStyle, fontSize: fontSizes.xs }}>
+              {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: spacing.sm, alignItems: "center", flexShrink: 0 }}>
+            <button onClick={() => setViewMode(viewMode === "bySection" ? "byCategory" : "bySection")}
+              style={buttonStyle}>
+              {viewMode === "bySection" ? "Par section" : "Par catégorie"}
+            </button>
+            <label style={{
+              fontSize: fontSizes.sm, color: colors.textSecondary,
+              display: "flex", alignItems: "center", gap: spacing.xs, cursor: "pointer",
+            }}>
+              <input type="checkbox" checked={filterDone} onChange={() => setFilterDone(!filterDone)}
+                style={{ accentColor: colors.blue }} />
+              Masquer terminés
+            </label>
+          </div>
         </div>
-        <div style={{
-          ...labelStyle,
-          fontSize: fontSizes.sm,
-        }}>
-          Statut Projet — {new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
-        </div>
-      </div>
 
-      {/* Stats bar */}
-      <div style={{
-        display: "flex", gap: spacing.lg, marginBottom: spacing.xl, flexWrap: "wrap",
-        padding: `${spacing.md}px ${spacing.lg}px`,
-        background: colors.surface1,
-        borderRadius: radii.lg,
-        border: `1px solid ${colors.borderLight}`,
-      }}>
-        <span style={{ fontFamily: fonts.mono, fontSize: fontSizes.sm, color: colors.textSecondary }}>
-          {stats.done}/{stats.total} completed
-        </span>
-        {stats.high > 0 && (
-          <span style={{ fontFamily: fonts.mono, fontSize: fontSizes.sm, color: colors.red }}>
-            {stats.high} high priority
-          </span>
-        )}
-        <span style={{ flex: 1 }} />
-        <div style={{ display: "flex", gap: spacing.sm, alignItems: "center" }}>
-          <button onClick={() => setViewMode(viewMode === "bySection" ? "byCategory" : "bySection")}
-            style={buttonStyle}>
-            {viewMode === "bySection" ? "Par section" : "Par catégorie"}
-          </button>
-          <label style={{
-            fontSize: fontSizes.sm, color: colors.textSecondary,
-            display: "flex", alignItems: "center", gap: spacing.xs, cursor: "pointer",
+        {/* Stats cards */}
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+          gap: spacing.sm, marginBottom: spacing.md,
+        }}>
+          {/* Overall progress */}
+          <div style={{
+            background: colors.surface2, borderRadius: radii.lg,
+            padding: `${spacing.md}px ${spacing.lg}px`,
+            border: `1px solid ${colors.borderLight}`,
           }}>
-            <input type="checkbox" checked={filterDone} onChange={() => setFilterDone(!filterDone)}
-              style={{ accentColor: colors.blue }} />
-            Masquer terminés
-          </label>
+            <div style={{ ...labelStyle, fontSize: fontSizes.xs, marginBottom: spacing.sm }}>Progress</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ fontSize: 22, fontWeight: 700, color: colors.blue, lineHeight: 1 }}>
+                {overallRate}%
+              </span>
+              <span style={{ fontSize: fontSizes.xs, color: colors.textMuted, fontFamily: fonts.mono }}>
+                {stats.done}/{stats.total}
+              </span>
+            </div>
+            <div style={{
+              height: 4, background: colors.surface1, borderRadius: 2,
+              marginTop: spacing.sm, overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%', width: `${overallRate}%`,
+                background: `linear-gradient(90deg, ${colors.blue}, ${colors.green})`,
+                borderRadius: 2, transition: 'width 0.3s ease',
+              }} />
+            </div>
+          </div>
+
+          {/* Per-category mini cards */}
+          {catStats.map(cat => (
+            <div key={cat.id} style={{
+              background: colors.surface2, borderRadius: radii.lg,
+              padding: `${spacing.md}px ${spacing.lg}px`,
+              borderLeft: `3px solid ${cat.color}`,
+              border: `1px solid ${colors.borderLight}`,
+              borderLeftColor: cat.color,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: spacing.sm }}>
+                <span style={{ fontSize: 12 }}>{cat.icon}</span>
+                <span style={{ ...labelStyle, fontSize: fontSizes.xs, margin: 0 }}>{cat.label}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                <span style={{ fontSize: 18, fontWeight: 700, color: colors.text, lineHeight: 1 }}>
+                  {cat.total}
+                </span>
+                {cat.done > 0 && (
+                  <span style={{ fontSize: fontSizes.xs, color: colors.green, fontFamily: fonts.mono }}>
+                    {cat.done} done
+                  </span>
+                )}
+              </div>
+              {cat.total > 0 && (
+                <div style={{
+                  height: 3, background: colors.surface1, borderRadius: 2,
+                  marginTop: spacing.sm, overflow: 'hidden',
+                }}>
+                  <div style={{
+                    height: '100%', width: `${cat.rate}%`,
+                    background: cat.color, borderRadius: 2,
+                    transition: 'width 0.3s ease',
+                  }} />
+                </div>
+              )}
+            </div>
+          ))}
+
+          {/* Alerts */}
+          {(stats.high > 0 || stats.blocked > 0) && (
+            <div style={{
+              background: colors.surface2, borderRadius: radii.lg,
+              padding: `${spacing.md}px ${spacing.lg}px`,
+              border: `1px solid ${colors.borderLight}`,
+              display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: spacing.xs,
+            }}>
+              <div style={{ ...labelStyle, fontSize: fontSizes.xs, marginBottom: 2 }}>Alerts</div>
+              {stats.high > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: colors.red, flexShrink: 0 }} />
+                  <span style={{ fontSize: fontSizes.sm, color: colors.red, fontFamily: fonts.mono }}>
+                    {stats.high} high priority
+                  </span>
+                </div>
+              )}
+              {stats.blocked > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: colors.red, flexShrink: 0 }} />
+                  <span style={{ fontSize: fontSizes.sm, color: colors.red, fontFamily: fonts.mono }}>
+                    {stats.blocked} blocked
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
