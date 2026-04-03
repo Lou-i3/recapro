@@ -10,6 +10,9 @@ import { colors, fonts, fontSizes, spacing, radii, transitions, shadows } from "
 
 interface DragHandlers {
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragLeave?: () => void;
+  onDrop?: (e: React.DragEvent<HTMLDivElement>) => void;
 }
 
 interface ItemRowProps {
@@ -19,6 +22,7 @@ interface ItemRowProps {
   sections: string[];
   categories: readonly Category[];
   dragHandlers: DragHandlers;
+  isDropTarget?: boolean;
   children?: ReactNode;
   childCount: number;
   doneCount: number;
@@ -29,15 +33,18 @@ interface ItemRowProps {
   onScrollToItem: (itemId: string) => void;
   highlighted: boolean;
   onAddLinkedItem: (categoryId: CategoryId, linkType: LinkType) => void;
+  onAddBlockingItem: (categoryId: CategoryId) => void;
   onAddLink: (link: ItemLink) => void;
+  onAddReverseLink: (targetId: string, link: ItemLink) => void;
   onRemoveLink: (targetId: string, type: LinkType) => void;
+  onRemoveLinkFromSource: (sourceId: string, targetId: string, type: LinkType) => void;
 }
 
 export default function ItemRow({
   item, onUpdate, onDelete, sections, categories, dragHandlers,
-  children, childCount, doneCount, onAddChild, isChild,
+  isDropTarget, children, childCount, doneCount, onAddChild, isChild,
   allItems, reverseLinks, onScrollToItem, highlighted,
-  onAddLinkedItem, onAddLink, onRemoveLink,
+  onAddLinkedItem, onAddBlockingItem, onAddLink, onAddReverseLink, onRemoveLink, onRemoveLinkFromSource,
 }: ItemRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [childrenOpen, setChildrenOpen] = useState(true);
@@ -69,11 +76,23 @@ export default function ItemRow({
     textAlign: 'left' as const, transition: transitions.fast,
   };
 
+  const { onDragStart, onDragOver, onDragLeave, onDrop } = dragHandlers;
+
   return (
     <div id={`item-${item.id}`}>
+      {isDropTarget && (
+        <div style={{
+          height: 3, background: colors.blue, borderRadius: 2,
+          marginBottom: 2, marginLeft: isChild ? 24 : 0,
+          transition: 'opacity 0.15s ease', opacity: 1,
+        }} />
+      )}
       <div
         draggable={!isChild}
-        {...(isChild ? {} : dragHandlers)}
+        onDragStart={isChild ? undefined : onDragStart}
+        onDragOver={isChild ? undefined : onDragOver}
+        onDragLeave={isChild ? undefined : onDragLeave}
+        onDrop={isChild ? undefined : onDrop}
         style={{
           background: highlighted
             ? `${colors.blue}18`
@@ -104,19 +123,13 @@ export default function ItemRow({
 
           {item.shortId && (
             <span style={{
-              fontSize: fontSizes.xs, fontFamily: fonts.mono,
-              color: cat.color, opacity: 0.7, flexShrink: 0,
-              minWidth: 28,
+              fontSize: fontSizes.sm, fontFamily: fonts.mono,
+              color: colors.textSecondary, flexShrink: 0,
+              minWidth: 30,
             }}>
               {item.shortId}
             </span>
           )}
-
-          <StatusBadge
-            categoryId={item.category}
-            status={item.status}
-            onChange={(s) => onUpdate({ status: s as Item['status'] })}
-          />
 
           <PriorityDot priority={item.priority} onChange={(p: PriorityId) => onUpdate({ priority: p })} />
 
@@ -177,6 +190,12 @@ export default function ItemRow({
               }}
             />
           )}
+
+          <StatusBadge
+            categoryId={item.category}
+            status={item.status}
+            onChange={(s) => onUpdate({ status: s as Item['status'] })}
+          />
 
           <span style={{ display: "flex", alignItems: "center", gap: spacing.xs, flexShrink: 0 }}>
             <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
@@ -300,9 +319,12 @@ export default function ItemRow({
               allItems={allItems}
               reverseLinks={reverseLinks}
               onAddLink={onAddLink}
+              onAddReverseLink={onAddReverseLink}
               onRemoveLink={onRemoveLink}
+              onRemoveLinkFromSource={onRemoveLinkFromSource}
               onScrollToItem={onScrollToItem}
               onAddLinkedItem={onAddLinkedItem}
+              onAddBlockingItem={onAddBlockingItem}
               onUnblock={() => onUpdate({ status: 'todo' })}
               categories={categories}
             />

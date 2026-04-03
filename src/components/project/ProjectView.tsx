@@ -158,30 +158,65 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
   const getChildCount = (parentId: string) => items.filter(i => i.parentId === parentId).length;
   const getDoneChildCount = (parentId: string) => items.filter(i => i.parentId === parentId && isCompleted(i)).length;
 
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+
   const handleDragStart = (e: React.DragEvent, item: Item) => {
     setDragItem(item);
     e.dataTransfer.effectAllowed = "move";
   };
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+
+  // Drop on a specific item (insert before it)
+  const handleDropOnItem = (e: React.DragEvent, targetItem: Item) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDropTargetId(null);
+    if (!dragItem || dragItem.id === targetItem.id) { setDragItem(null); return; }
+
+    setItems((prev) => {
+      // Move dragged item to same section/category as target
+      const updated = prev.map(it => it.id === dragItem.id
+        ? { ...it, category: targetItem.category, section: targetItem.section }
+        : it
+      );
+      // Get ordered roots in the target group
+      const groupItems = updated
+        .filter(it => it.category === targetItem.category && it.section === targetItem.section && !it.parentId)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+      // Build new order: insert dragged before target
+      const ordered = groupItems.filter(it => it.id !== dragItem.id);
+      const targetIdx = ordered.findIndex(it => it.id === targetItem.id);
+      ordered.splice(targetIdx, 0, groupItems.find(it => it.id === dragItem.id)!);
+      // Apply new order values
+      const orderMap = new Map<string, number>();
+      ordered.forEach((it, i) => orderMap.set(it.id, i + 1));
+      return updated.map(it => orderMap.has(it.id) ? { ...it, order: orderMap.get(it.id)! } : it);
+    });
+    setDragItem(null);
+  };
+
+  // Drop on empty zone (append to end of group)
   const handleDrop = (e: React.DragEvent, targetCategory: CategoryId, targetSection: string) => {
     e.preventDefault();
-    if (dragItem) {
-      setItems((prev) => {
-        const updated = prev.map(it => it.id === dragItem.id
-          ? { ...it, category: targetCategory, section: targetSection }
-          : it
-        );
-        // Reindex order for the target group
-        let order = 1;
-        return updated.map(it => {
-          if (it.category === targetCategory && it.section === targetSection && !it.parentId) {
-            return { ...it, order: order++ };
-          }
-          return it;
-        });
-      });
-      setDragItem(null);
-    }
+    setDropTargetId(null);
+    if (!dragItem) return;
+
+    setItems((prev) => {
+      const updated = prev.map(it => it.id === dragItem.id
+        ? { ...it, category: targetCategory, section: targetSection }
+        : it
+      );
+      // Put dragged item at the end, then reindex
+      const groupItems = updated
+        .filter(it => it.category === targetCategory && it.section === targetSection && !it.parentId)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+      const ordered = groupItems.filter(it => it.id !== dragItem.id);
+      ordered.push(groupItems.find(it => it.id === dragItem.id)!);
+      const orderMap = new Map<string, number>();
+      ordered.forEach((it, i) => orderMap.set(it.id, i + 1));
+      return updated.map(it => orderMap.has(it.id) ? { ...it, order: orderMap.get(it.id)! } : it);
+    });
+    setDragItem(null);
   };
 
   const handleExport = () => {
@@ -199,6 +234,15 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
     } catch { /* user cancelled */ }
   };
 
+  const removeLinkFromItem = (itemId: string, targetId: string, type: LinkType) => {
+    update({
+      items: items.map(it => {
+        if (it.id !== itemId) return it;
+        return { ...it, links: (it.links || []).filter(l => !(l.targetId === targetId && l.type === type)) };
+      }),
+    });
+  };
+
   const renderItemWithChildren = (item: Item) => {
     const childItems = getChildren(item.id);
     return (
@@ -209,7 +253,13 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
         onDelete={() => deleteItem(item.id)}
         sections={sections}
         categories={CATEGORIES}
-        dragHandlers={{ onDragStart: (e) => handleDragStart(e, item) }}
+        dragHandlers={{
+          onDragStart: (e) => handleDragStart(e, item),
+          onDragOver: (e) => { e.preventDefault(); e.stopPropagation(); setDropTargetId(item.id); },
+          onDragLeave: () => setDropTargetId(null),
+          onDrop: (e) => handleDropOnItem(e, item),
+        }}
+        isDropTarget={dropTargetId === item.id && dragItem?.id !== item.id}
         childCount={getChildCount(item.id)}
         doneCount={getDoneChildCount(item.id)}
         onAddChild={() => addItem(item.category, item.section, item.id)}
@@ -221,10 +271,30 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
         onAddLinkedItem={(categoryId, linkType) => {
           addItem(categoryId, item.section, null, [{ targetId: item.id, type: linkType }]);
         }}
+        onAddBlockingItem={(categoryId) => {
+          // Create new item, then add depends-on link on current item pointing to it
+          const newItem = {
+            ...emptyItem(categoryId, item.section, null),
+            shortId: nextShortId(categoryId, null, items),
+            order: nextOrder(categoryId, item.section, items),
+          };
+          update({
+            items: [...items, newItem].map(it =>
+              it.id === item.id ? { ...it, links: [...(it.links || []), { targetId: newItem.id, type: 'depends-on' as LinkType }] } : it
+            ),
+          });
+        }}
         onAddLink={(link) => updateItem(item.id, { links: [...(item.links || []), link] })}
-        onRemoveLink={(targetId, type) => updateItem(item.id, {
-          links: (item.links || []).filter(l => !(l.targetId === targetId && l.type === type)),
-        })}
+        onAddReverseLink={(targetId, link) => {
+          // Store link on the target item
+          update({
+            items: items.map(it =>
+              it.id === targetId ? { ...it, links: [...(it.links || []), link] } : it
+            ),
+          });
+        }}
+        onRemoveLink={(targetId, type) => removeLinkFromItem(item.id, targetId, type)}
+        onRemoveLinkFromSource={removeLinkFromItem}
       >
         {childItems.map(child => (
           <ItemRow
@@ -244,10 +314,17 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
             onScrollToItem={scrollToItem}
             highlighted={highlightedItemId === child.id}
             onAddLinkedItem={() => {}}
+            onAddBlockingItem={() => {}}
             onAddLink={(link) => updateItem(child.id, { links: [...(child.links || []), link] })}
-            onRemoveLink={(targetId, type) => updateItem(child.id, {
-              links: (child.links || []).filter(l => !(l.targetId === targetId && l.type === type)),
-            })}
+            onAddReverseLink={(targetId, link) => {
+              update({
+                items: items.map(it =>
+                  it.id === targetId ? { ...it, links: [...(it.links || []), link] } : it
+                ),
+              });
+            }}
+            onRemoveLink={(targetId, type) => removeLinkFromItem(child.id, targetId, type)}
+            onRemoveLinkFromSource={removeLinkFromItem}
           />
         ))}
       </ItemRow>

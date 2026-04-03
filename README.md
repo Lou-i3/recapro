@@ -61,3 +61,4 @@ src/
 - [ ] **Theme** — light/dark toggle
 - [ ] **Notion export** — generate Notion pages via API
 - [ ] **Search** — global search bar with keyboard shortcuts to filter items by text, owner, priority, etc.
+- [ ] Collapse/expand sections and categories, with state persistence, and "all" option
