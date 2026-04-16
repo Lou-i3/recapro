@@ -35,9 +35,10 @@ src/
 │   │   ├── Layout.tsx          # Client layout (contexts, sidebar, main)
 │   │   └── Sidebar.tsx         # Navigation, project management
 │   ├── project/
-│   │   ├── ProjectView.tsx     # Main project view (items, sections, stats)
-│   │   ├── ItemRow.tsx         # Item row (status, priority, owner, menu, links)
-│   │   ├── LinkSection.tsx     # Link panel (chips, search, quick create, indicators)
+│   │   ├── ProjectView.tsx     # Main project view (items, sections, stats, sticky toolbar, search)
+│   │   ├── ItemRow.tsx         # Item row (status, priority, owner, menu, links, reparenting)
+│   │   ├── ItemPicker.tsx      # Reusable hybrid search+create picker (used by links, reparenting)
+│   │   ├── LinkSection.tsx     # Link panel (grouped display, contextual quick-create, indicators)
 │   │   ├── EditableText.tsx    # Inline editable text with markdown preview
 │   │   ├── StatusBadge.tsx     # Status selector per category
 │   │   ├── PriorityDot.tsx     # Priority selector
@@ -50,8 +51,8 @@ src/
 │   ├── useProjects.ts          # Projects list (CRUD)
 │   └── useAllProjects.ts       # All projects with full data
 ├── lib/
-│   ├── constants.ts            # CATEGORIES, PRIORITY_LEVELS, STATUS_BY_CATEGORY, LINK_LABELS, emptyItem()
-│   ├── theme.ts                # Design tokens (colors, fonts, spacing, style presets)
+│   ├── constants.ts            # CATEGORIES, PRIORITY_LEVELS, STATUS_BY_CATEGORY, LINK_LABELS, QUICK_LINK_BY_CATEGORY, emptyItem()
+│   ├── theme.ts                # Design tokens (colors, fonts, spacing, style presets, TOOLBAR_HEIGHT)
 │   ├── api.ts                  # Client fetch wrapper (/api/projects)
 │   └── storage.ts              # localStorage legacy + export/import JSON
 └── types/
@@ -128,6 +129,22 @@ npm run typecheck  # TypeScript check (tsc --noEmit)
 - **depends-on**: hard dependency (forward: "depends on", reverse: "blocks")
 - **stems-from**: causal origin (forward: "stems from", reverse: "leads to")
 - **related**: soft association (bidirectional: "related to")
+
+### Contextual quick-create links (QUICK_LINK_BY_CATEGORY)
+- **From Decision**: Action from this, Question about this, From question…
+- **From Action**: From decision…, Blocked by…
+- **From Question**: Decision from this, Action from this
+- Primary workflow: Question → Decision → Action (bidirectional navigation)
+
+## Key architectural patterns
+
+- **Item expansion state**: Lifted to ProjectView (`expandedItems`, `collapsedChildren` Sets), passed as props to ItemRow
+- **Recursive rendering**: `renderItemRecursive(item, depth)` — unlimited nesting depth, all items have the same capabilities
+- **Sticky toolbar**: Search + toggles sticky at top (z-index 10), section headers stick below it (z-index 5, top: TOOLBAR_HEIGHT)
+- **Search filtering**: `searchFilteredItems` memo — filters on text/shortId/note/owner, includes ancestors if child matches and descendants if parent matches
+- **ItemPicker**: Reusable hybrid component (search existing + create new inline) used by contextual link buttons, "Link existing", and "Make child of…" menu
+- **Drag & drop zones**: 3-zone detection in `handleItemDragOver` (top 25% = before, middle 50% = reparent, bottom 25% = after), zone recalculated in drop handler to avoid stale state
+- **Reparenting**: Via drag & drop (zone "on") or menu ("Make child of…" / "Make root item"). Same-category constraint, circular reference prevention, shortId reassignment on reparent
 
 ## Notes for Claude
 

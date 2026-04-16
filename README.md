@@ -17,13 +17,19 @@ The app is available at http://localhost:3000.
 - **3 categories** — Decisions, Actions, Questions, each with their own statuses
 - **Custom sections** — organize items by theme (General, Technical, Budget…)
 - **Priorities & assignment** — high/medium/low, owner per item
-- **Sub-items** — child items with completion tracking
-- **Short IDs** — stable, readable IDs per item (D1, A5, Q3)
+- **Sub-items** — unlimited nesting depth with completion tracking
+- **Short IDs** — stable, readable IDs per item (D1, A5, Q3, D1.1…)
 - **Item linking** — typed relationships: depends on, stems from, related to
+- **Contextual link creation** — category-aware quick-create buttons (Q→D→A workflow), hybrid search+create picker
+- **Link display** — grouped by type (Stems from, Leads to, Depends on, Blocks, Related) with status indicators, section badges, and category colors
 - **Dependency indicators** — visual status on dependency links with unblock suggestions
+- **Search & filter** — real-time search on text, shortId, notes, owner (⌘K shortcut), parent/child inclusion
+- **Sticky toolbar** — search, view mode, show closed, expand/collapse all — always visible on scroll
 - **Markdown notes** — per-project notes panel with markdown preview
-- **Drag & drop** — move items between sections and categories
+- **Drag & drop** — reorder items within any level, reparent by dropping on an item (3-zone detection)
+- **Reparenting** — move items between parents via drag & drop or context menu (Make child of… / Make root item)
 - **Views** — by section or by category, with collapse/expand
+- **Expand/collapse all** — open/close all item details or all parent-child hierarchies
 - **Import/Export JSON** — save and restore data
 - **Dashboard** — global stats and recent activity
 
@@ -45,7 +51,7 @@ src/
 ├── components/             # React components
 │   ├── dashboard/          # StatsSection, ActivityFeed
 │   ├── layout/             # Layout, Sidebar
-│   └── project/            # ProjectView, ItemRow, LinkSection, EditableText, etc.
+│   └── project/            # ProjectView, ItemRow, ItemPicker, LinkSection, EditableText, etc.
 ├── hooks/                  # useProject, useProjects, useAllProjects
 ├── lib/                    # constants, theme, api, storage
 └── types/                  # Central TypeScript types
@@ -56,9 +62,8 @@ src/
 - [ ] **MCP Server** — allow Claude to interact with project data ([plan](docs/plan-mcp-server.md))
 - [ ] **Enhanced import/export** — merge, partial export, CSV format
 - [ ] **History / audit** — log status changes
-- [ ] **Advanced filters** — by owner, priority, text search
-- [ ] **Enhanced drag & drop** — reorder items and sections
 - [ ] **Theme** — light/dark toggle
 - [ ] **Notion export** — generate Notion pages via API
-- [ ] **Search** — global search bar with keyboard shortcuts to filter items by text, owner, priority, etc.
-- [ ] Collapse/expand sections and categories, with state persistence, and "all" option
+- [ ] **Auto-suggest decisions** — propose creating a decision when a question is marked as answered
+- [ ] **SVG icon library** — replace emojis with proper SVG icons ([Phosphor Icons](https://phosphoricons.com/) or [Next Icons](https://www.nexticons.com/))
+- [ ] **Collapse/expand state persistence** — remember collapsed sections across sessions
