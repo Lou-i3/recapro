@@ -5,7 +5,9 @@ import EditableText from "./EditableText";
 import PriorityDot from "./PriorityDot";
 import StatusBadge from "./StatusBadge";
 import LinkSection from "./LinkSection";
+import ItemPicker from "./ItemPicker";
 import type { Item, Category, PriorityId, CategoryId, ItemLink, LinkType } from "../../types";
+import type { LinkDirection } from "../../lib/constants";
 import { colors, fonts, fontSizes, spacing, radii, transitions, shadows } from "../../lib/theme";
 
 interface DragHandlers {
@@ -23,33 +25,40 @@ interface ItemRowProps {
   categories: readonly Category[];
   dragHandlers: DragHandlers;
   isDropTarget?: boolean;
+  dropZone?: 'before' | 'on' | 'after';
   children?: ReactNode;
   childCount: number;
   doneCount: number;
   onAddChild: () => void;
-  isChild: boolean;
+  depth: number;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  childrenOpen: boolean;
+  onToggleChildren: () => void;
   allItems: Item[];
   reverseLinks: { sourceId: string; type: LinkType }[];
   onScrollToItem: (itemId: string) => void;
   highlighted: boolean;
-  onAddLinkedItem: (categoryId: CategoryId, linkType: LinkType) => void;
-  onAddBlockingItem: (categoryId: CategoryId) => void;
+  onCreateAndLink: (categoryId: CategoryId, section: string, text: string, linkType: LinkType, direction: LinkDirection) => void;
   onAddLink: (link: ItemLink) => void;
   onAddReverseLink: (targetId: string, link: ItemLink) => void;
   onRemoveLink: (targetId: string, type: LinkType) => void;
   onRemoveLinkFromSource: (sourceId: string, targetId: string, type: LinkType) => void;
+  onReparent: (newParentId: string) => void;
+  onMakeRoot: () => void;
 }
 
 export default function ItemRow({
   item, onUpdate, onDelete, sections, categories, dragHandlers,
-  isDropTarget, children, childCount, doneCount, onAddChild, isChild,
+  isDropTarget, dropZone, children, childCount, doneCount, onAddChild, depth,
+  expanded, onToggleExpanded, childrenOpen, onToggleChildren,
   allItems, reverseLinks, onScrollToItem, highlighted,
-  onAddLinkedItem, onAddBlockingItem, onAddLink, onAddReverseLink, onRemoveLink, onRemoveLinkFromSource,
+  onCreateAndLink, onAddLink, onAddReverseLink, onRemoveLink, onRemoveLinkFromSource,
+  onReparent, onMakeRoot,
 }: ItemRowProps) {
-  const [expanded, setExpanded] = useState(false);
-  const [childrenOpen, setChildrenOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingOwner, setEditingOwner] = useState(false);
+  const [reparentPickerOpen, setReparentPickerOpen] = useState(false);
   const menuRef = useRef<HTMLSpanElement>(null);
   const cat = categories.find(c => c.id === item.category) || categories[0];
   const isDimmed = item.status === 'closed';
@@ -80,37 +89,40 @@ export default function ItemRow({
 
   return (
     <div id={`item-${item.id}`}>
-      {isDropTarget && (
+      {isDropTarget && dropZone === 'before' && (
         <div style={{
           height: 3, background: colors.blue, borderRadius: 2,
-          marginBottom: 2, marginLeft: isChild ? 24 : 0,
-          transition: 'opacity 0.15s ease', opacity: 1,
+          marginBottom: 2, marginLeft: depth > 0 ? 24 : 0,
         }} />
       )}
       <div
-        draggable={!isChild}
-        onDragStart={isChild ? undefined : onDragStart}
-        onDragOver={isChild ? undefined : onDragOver}
-        onDragLeave={isChild ? undefined : onDragLeave}
-        onDrop={isChild ? undefined : onDrop}
+        draggable
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
         style={{
           background: highlighted
             ? `${colors.blue}18`
-            : isDimmed ? colors.surface1 : colors.surface2,
+            : (isDropTarget && dropZone === 'on')
+              ? `${colors.blue}12`
+              : isDimmed ? colors.surface1 : colors.surface2,
           borderRadius: radii.lg,
           padding: `${spacing.sm}px ${spacing.md}px`,
           marginBottom: 2,
-          marginLeft: isChild ? 24 : 0,
+          marginLeft: depth > 0 ? 24 : 0,
           color: isDimmed ? colors.textMuted : colors.text,
           borderLeft: `3px solid ${cat.color}`,
+          outline: (isDropTarget && dropZone === 'on') ? `2px dashed ${colors.blue}` : 'none',
+          outlineOffset: -2,
           transition: 'background 0.5s ease, color 0.2s ease',
-          cursor: isChild ? 'default' : 'grab',
+          cursor: 'grab',
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: spacing.sm }}>
-          {!isChild && (
+          {(hasChildren || depth === 0) && (
             <span
-              onClick={hasChildren ? () => setChildrenOpen(!childrenOpen) : undefined}
+              onClick={hasChildren ? onToggleChildren : undefined}
               style={{
                 fontSize: fontSizes.xs, color: hasChildren ? colors.textMuted : 'transparent',
                 userSelect: 'none', width: 14, textAlign: 'center', flexShrink: 0,
@@ -199,7 +211,7 @@ export default function ItemRow({
 
           <span style={{ display: "flex", alignItems: "center", gap: spacing.xs, flexShrink: 0 }}>
             <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-              <button onClick={() => setExpanded(!expanded)} style={{
+              <button onClick={onToggleExpanded} style={{
                 background: "none", border: "none",
                 color: hasContent ? colors.purple : colors.dimmed,
                 cursor: "pointer", fontSize: fontSizes.md, padding: "2px 4px",
@@ -248,14 +260,32 @@ export default function ItemRow({
                     {item.owner ? `Edit owner (@${item.owner})` : 'Add owner'}
                   </button>
 
-                  {!isChild && (
+                  <button
+                    onClick={() => { setMenuOpen(false); onAddChild(); }}
+                    style={menuItemStyle}
+                    onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    Add sub-item
+                  </button>
+
+                  <button
+                    onClick={() => { setMenuOpen(false); setReparentPickerOpen(true); }}
+                    style={menuItemStyle}
+                    onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >
+                    Make child of…
+                  </button>
+
+                  {item.parentId && (
                     <button
-                      onClick={() => { setMenuOpen(false); onAddChild(); }}
+                      onClick={() => { setMenuOpen(false); onMakeRoot(); }}
                       style={menuItemStyle}
                       onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
                       onMouseLeave={e => e.currentTarget.style.background = 'none'}
                     >
-                      Add sub-item
+                      Make root item
                     </button>
                   )}
 
@@ -317,16 +347,15 @@ export default function ItemRow({
             <LinkSection
               item={item}
               allItems={allItems}
+              sections={sections}
               reverseLinks={reverseLinks}
               onAddLink={onAddLink}
               onAddReverseLink={onAddReverseLink}
               onRemoveLink={onRemoveLink}
               onRemoveLinkFromSource={onRemoveLinkFromSource}
               onScrollToItem={onScrollToItem}
-              onAddLinkedItem={onAddLinkedItem}
-              onAddBlockingItem={onAddBlockingItem}
+              onCreateAndLink={onCreateAndLink}
               onUnblock={() => onUpdate({ status: 'todo' })}
-              categories={categories}
             />
             <EditableText
               value={item.note}
@@ -337,6 +366,39 @@ export default function ItemRow({
           </div>
         )}
       </div>
+
+      {isDropTarget && dropZone === 'after' && (
+        <div style={{
+          height: 3, background: colors.blue, borderRadius: 2,
+          marginTop: 2, marginLeft: depth > 0 ? 24 : 0,
+        }} />
+      )}
+
+      {/* Reparent picker */}
+      {reparentPickerOpen && (
+        <div style={{ marginLeft: depth > 0 ? 24 : 0, marginTop: 4, position: 'relative', zIndex: 50 }}>
+          <ItemPicker
+            allItems={allItems}
+            sections={sections}
+            excludeIds={(() => {
+              // Exclude self and all descendants
+              const excluded = new Set<string>([item.id]);
+              const addDesc = (parentId: string) => {
+                allItems.filter(i => i.parentId === parentId).forEach(child => {
+                  excluded.add(child.id);
+                  addDesc(child.id);
+                });
+              };
+              addDesc(item.id);
+              return excluded;
+            })()}
+            filterFn={(i) => i.category === item.category}
+            onSelectExisting={(target) => { onReparent(target.id); setReparentPickerOpen(false); }}
+            placeholder={`Search ${item.category} items…`}
+            onClose={() => setReparentPickerOpen(false)}
+          />
+        </div>
+      )}
 
       {hasChildren && childrenOpen && (
         <div style={{

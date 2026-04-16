@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { CATEGORIES, COMPLETED_STATUSES, HIDDEN_STATUSES, CATEGORY_PREFIX, emptyItem } from "../../lib/constants";
 import { exportProjectJSON, importProjectJSON } from "../../lib/storage";
-import { colors, categoryBg, fonts, fontSizes, spacing, radii, transitions, shadows, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle } from "../../lib/theme";
+import { colors, categoryBg, fonts, fontSizes, spacing, radii, transitions, shadows, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle, TOOLBAR_HEIGHT } from "../../lib/theme";
 import EditableText from "./EditableText";
 import ItemRow from "./ItemRow";
 import type { Project, Item, CategoryId, ItemLink, LinkType } from "../../types";
@@ -22,9 +22,31 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
   const [addingSectionOpen, setAddingSectionOpen] = useState(false);
   const [dragItem, setDragItem] = useState<Item | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [collapsedChildren, setCollapsedChildren] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const [sectionMenu, setSectionMenu] = useState<string | null>(null);
   const [renamingSection, setRenamingSection] = useState<string | null>(null);
   const sectionMenuRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const toggleItemExpanded = useCallback((itemId: string) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }, []);
+
+  const toggleChildrenCollapsed = useCallback((itemId: string) => {
+    setCollapsedChildren(prev => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }, []);
 
   const update = (patch: Partial<Project>) => onSave({ ...project, ...patch });
 
@@ -41,7 +63,15 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
   const updateItem = (id: string, patch: Partial<Item>) =>
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   const deleteItem = (id: string) =>
-    setItems((prev) => prev.filter((it) => it.id !== id && it.parentId !== id));
+    setItems((prev) => {
+      const idsToRemove = new Set<string>();
+      const collectDescendants = (parentId: string) => {
+        idsToRemove.add(parentId);
+        prev.filter(it => it.parentId === parentId).forEach(child => collectDescendants(child.id));
+      };
+      collectDescendants(id);
+      return prev.filter(it => !idsToRemove.has(it.id));
+    });
 
   const nextShortId = useCallback((categoryId: CategoryId, parentId: string | null, currentItems: Item[]) => {
     if (parentId) {
@@ -75,6 +105,69 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
       return [...prev, newItem];
     });
   };
+
+  // Reassign shortIds for all children of a parent recursively
+  const reassignChildShortIds = (allItems: Item[], parentId: string, parentShortId: string): Item[] => {
+    let idx = 0;
+    return allItems.map(item => {
+      if (item.parentId === parentId) {
+        idx++;
+        const newShortId = `${parentShortId}.${idx}`;
+        return { ...item, shortId: newShortId };
+      }
+      return item;
+    });
+  };
+
+  const reparentItem = useCallback((itemId: string, newParentId: string) => {
+    setItems((prev) => {
+      const item = prev.find(i => i.id === itemId);
+      const newParent = prev.find(i => i.id === newParentId);
+      if (!item || !newParent) return prev;
+      if (item.category !== newParent.category) return prev;
+
+      // Prevent circular reparenting
+      let check: Item | undefined = newParent;
+      while (check?.parentId) {
+        if (check.parentId === itemId) return prev; // would create a cycle
+        check = prev.find(i => i.id === check!.parentId);
+      }
+
+      const siblingCount = prev.filter(i => i.parentId === newParentId && i.id !== itemId).length;
+      const newShortId = `${newParent.shortId}.${siblingCount + 1}`;
+
+      let updated = prev.map(i => {
+        if (i.id === itemId) {
+          return { ...i, parentId: newParentId, section: newParent.section, shortId: newShortId };
+        }
+        return i;
+      });
+
+      // Reassign shortIds for children of the reparented item
+      updated = reassignChildShortIds(updated, itemId, newShortId);
+      return updated;
+    });
+  }, []);
+
+  const makeRootItem = useCallback((itemId: string) => {
+    setItems((prev) => {
+      const item = prev.find(i => i.id === itemId);
+      if (!item) return prev;
+
+      const newShortId = nextShortId(item.category, null, prev.filter(i => i.id !== itemId));
+      const newOrder = nextOrder(item.category, item.section, prev);
+
+      let updated = prev.map(i => {
+        if (i.id === itemId) {
+          return { ...i, parentId: null, shortId: newShortId, order: newOrder };
+        }
+        return i;
+      });
+
+      updated = reassignChildShortIds(updated, itemId, newShortId);
+      return updated;
+    });
+  }, [nextShortId, nextOrder]);
 
   const addSection = () => {
     const name = newSection.trim();
@@ -111,9 +204,65 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
   const toggleCollapse = (key: string) =>
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  // Cmd+K / Ctrl+K shortcut for search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
   const isCompleted = (item: Item) => COMPLETED_STATUSES.has(item.status);
   const isHidden = (item: Item) => HIDDEN_STATUSES.has(item.status);
   const filteredItems = showHidden ? items : items.filter((i) => !isHidden(i));
+
+  // Search filtering with parent/child inclusion
+  const searchFilteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return filteredItems;
+    const q = searchQuery.toLowerCase();
+    const itemMap = new Map(filteredItems.map(i => [i.id, i]));
+
+    // Find direct matches
+    const directMatches = new Set<string>();
+    for (const item of filteredItems) {
+      if (
+        item.text.toLowerCase().includes(q) ||
+        item.shortId?.toLowerCase().includes(q) ||
+        item.note?.toLowerCase().includes(q) ||
+        item.owner?.toLowerCase().includes(q)
+      ) {
+        directMatches.add(item.id);
+      }
+    }
+
+    // Include descendants of matches
+    const includedIds = new Set(directMatches);
+    const addDescendants = (parentId: string) => {
+      for (const item of filteredItems) {
+        if (item.parentId === parentId && !includedIds.has(item.id)) {
+          includedIds.add(item.id);
+          addDescendants(item.id);
+        }
+      }
+    };
+    for (const id of directMatches) addDescendants(id);
+
+    // Include ancestors of matches
+    const addAncestors = (itemId: string) => {
+      const item = itemMap.get(itemId);
+      if (item?.parentId && !includedIds.has(item.parentId)) {
+        includedIds.add(item.parentId);
+        addAncestors(item.parentId);
+      }
+    };
+    for (const id of directMatches) addAncestors(id);
+
+    return filteredItems.filter(i => includedIds.has(i.id));
+  }, [filteredItems, searchQuery]);
 
   const rootItems = items.filter(i => !i.parentId);
   const stats = {
@@ -142,63 +291,211 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
     return map;
   }, [items]);
 
+  // Expand/collapse all details (items with content)
+  const itemsWithContent = useMemo(() => {
+    return new Set(items.filter(item => {
+      const hasLinks = (item.links?.length || 0) > 0 || (reverseLinks[item.id]?.length || 0) > 0;
+      return hasLinks || !!item.note;
+    }).map(i => i.id));
+  }, [items, reverseLinks]);
+
+  const allDetailsOpen = useMemo(() => {
+    if (itemsWithContent.size === 0) return false;
+    return [...itemsWithContent].every(id => expandedItems.has(id));
+  }, [itemsWithContent, expandedItems]);
+
+  const toggleAllDetails = useCallback(() => {
+    if (allDetailsOpen) {
+      setExpandedItems(new Set());
+    } else {
+      setExpandedItems(new Set(itemsWithContent));
+    }
+  }, [allDetailsOpen, itemsWithContent]);
+
+  // Expand/collapse all parent-child hierarchies
+  const parentIds = useMemo(() => {
+    return new Set(items.filter(i => i.parentId).map(i => i.parentId!));
+  }, [items]);
+
+  const allChildrenExpanded = useMemo(() => {
+    if (parentIds.size === 0) return true;
+    return [...parentIds].every(id => !collapsedChildren.has(id));
+  }, [parentIds, collapsedChildren]);
+
+  const toggleAllChildren = useCallback(() => {
+    if (allChildrenExpanded) {
+      setCollapsedChildren(new Set(parentIds));
+    } else {
+      setCollapsedChildren(new Set());
+    }
+  }, [allChildrenExpanded, parentIds]);
+
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
 
   const scrollToItem = useCallback((itemId: string) => {
-    setHighlightedItemId(itemId);
-    setTimeout(() => {
-      const el = document.getElementById(`item-${itemId}`);
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 50);
-    setTimeout(() => setHighlightedItemId(null), 2500);
-  }, []);
+    const targetItem = items.find(i => i.id === itemId);
+    if (!targetItem) return;
 
-  const getChildren = (parentId: string) => filteredItems.filter(i => i.parentId === parentId);
+    // If item is hidden by "show closed" filter, enable it
+    if (!showHidden && HIDDEN_STATUSES.has(targetItem.status)) {
+      setShowHidden(true);
+    }
+
+    // Expand collapsed sections/categories containing the target
+    setCollapsedSections(prev => {
+      const next = { ...prev };
+      const section = targetItem.section;
+      const category = targetItem.category;
+      if (viewMode === 'bySection') {
+        if (next[section]) next[section] = false;
+        const subKey = `${section}:${category}`;
+        if (next[subKey]) next[subKey] = false;
+      } else {
+        if (next[category]) next[category] = false;
+        const subKey = `${category}:${section}`;
+        if (next[subKey]) next[subKey] = false;
+      }
+      return next;
+    });
+
+    // Expand parent-child hierarchies for the target
+    setCollapsedChildren(prev => {
+      const next = new Set(prev);
+      let current = targetItem;
+      while (current.parentId) {
+        next.delete(current.parentId);
+        const parent = items.find(i => i.id === current.parentId);
+        if (!parent) break;
+        current = parent;
+      }
+      return next;
+    });
+
+    // Expand the target item's details panel
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      next.add(itemId);
+      return next;
+    });
+
+    // Highlight and scroll after state updates render
+    setHighlightedItemId(itemId);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`item-${itemId}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+    setTimeout(() => setHighlightedItemId(null), 2500);
+  }, [items, showHidden, viewMode]);
+
+  const getChildren = (parentId: string) => searchFilteredItems.filter(i => i.parentId === parentId);
   const getRootItems = (list: Item[]) => list.filter(i => !i.parentId).sort((a, b) => (a.order || 0) - (b.order || 0));
   const getChildCount = (parentId: string) => items.filter(i => i.parentId === parentId).length;
   const getDoneChildCount = (parentId: string) => items.filter(i => i.parentId === parentId && isCompleted(i)).length;
 
-  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  type DropZone = 'before' | 'on' | 'after';
+  const [dropInfo, setDropInfo] = useState<{ targetId: string; zone: DropZone } | null>(null);
 
   const handleDragStart = (e: React.DragEvent, item: Item) => {
+    e.stopPropagation();
     setDragItem(item);
     e.dataTransfer.effectAllowed = "move";
   };
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  // Drop on a specific item (insert before it)
+  const handleItemDragOver = (e: React.DragEvent, targetItem: Item) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dragItem || dragItem.id === targetItem.id) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const ratio = y / rect.height;
+    let zone: DropZone;
+    if (ratio < 0.25) zone = 'before';
+    else if (ratio > 0.75) zone = 'after';
+    else zone = 'on';
+
+    // Only allow reparenting on same category
+    if (zone === 'on' && dragItem.category !== targetItem.category) zone = 'before';
+
+    setDropInfo({ targetId: targetItem.id, zone });
+  };
+
+  // Drop handler for items (reorder or reparent)
   const handleDropOnItem = (e: React.DragEvent, targetItem: Item) => {
     e.preventDefault();
     e.stopPropagation();
-    setDropTargetId(null);
-    if (!dragItem || dragItem.id === targetItem.id) { setDragItem(null); return; }
+    if (!dragItem || dragItem.id === targetItem.id) {
+      setDragItem(null);
+      setDropInfo(null);
+      return;
+    }
 
-    setItems((prev) => {
-      // Move dragged item to same section/category as target
-      const updated = prev.map(it => it.id === dragItem.id
-        ? { ...it, category: targetItem.category, section: targetItem.section }
-        : it
-      );
-      // Get ordered roots in the target group
-      const groupItems = updated
-        .filter(it => it.category === targetItem.category && it.section === targetItem.section && !it.parentId)
-        .sort((a, b) => (a.order || 0) - (b.order || 0));
-      // Build new order: insert dragged before target
-      const ordered = groupItems.filter(it => it.id !== dragItem.id);
-      const targetIdx = ordered.findIndex(it => it.id === targetItem.id);
-      ordered.splice(targetIdx, 0, groupItems.find(it => it.id === dragItem.id)!);
-      // Apply new order values
-      const orderMap = new Map<string, number>();
-      ordered.forEach((it, i) => orderMap.set(it.id, i + 1));
-      return updated.map(it => orderMap.has(it.id) ? { ...it, order: orderMap.get(it.id)! } : it);
-    });
+    // Recompute zone from mouse position to avoid stale state
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const ratio = y / rect.height;
+    let zone: DropZone;
+    if (ratio < 0.25) zone = 'before';
+    else if (ratio > 0.75) zone = 'after';
+    else zone = 'on';
+    if (zone === 'on' && dragItem.category !== targetItem.category) zone = 'before';
+
+    if (zone === 'on') {
+      // Reparent: make dragged item a child of targetItem
+      if (dragItem.category === targetItem.category) {
+        reparentItem(dragItem.id, targetItem.id);
+      }
+    } else {
+      // Reorder: insert before or after target, within the same sibling group
+      setItems((prev) => {
+        const targetParentId = targetItem.parentId;
+        // Move dragged item to same parent/section/category as target
+        const updated = prev.map(it => it.id === dragItem.id
+          ? { ...it, category: targetItem.category, section: targetItem.section, parentId: targetParentId }
+          : it
+        );
+        // Get siblings: items sharing the same parent (or all roots if parentId is null)
+        const siblings = updated
+          .filter(it =>
+            it.parentId === targetParentId &&
+            it.category === targetItem.category &&
+            it.section === targetItem.section
+          )
+          .sort((a, b) => (a.order || 0) - (b.order || 0));
+        const ordered = siblings.filter(it => it.id !== dragItem.id);
+        const targetIdx = ordered.findIndex(it => it.id === targetItem.id);
+        const insertIdx = zone === 'before' ? targetIdx : targetIdx + 1;
+        const draggedItem = siblings.find(it => it.id === dragItem.id);
+        if (draggedItem) ordered.splice(insertIdx, 0, draggedItem);
+        const orderMap = new Map<string, number>();
+        ordered.forEach((it, i) => orderMap.set(it.id, i + 1));
+
+        // Also reassign shortIds if the item moved to a new parent
+        let result = updated.map(it => orderMap.has(it.id) ? { ...it, order: orderMap.get(it.id)! } : it);
+        if (dragItem.parentId !== targetParentId) {
+          const movedItem = result.find(it => it.id === dragItem.id);
+          if (movedItem) {
+            const newShortId = targetParentId
+              ? `${result.find(it => it.id === targetParentId)?.shortId || '?'}.${ordered.findIndex(it => it.id === dragItem.id) + 1}`
+              : nextShortId(movedItem.category, null, result.filter(it => it.id !== dragItem.id));
+            result = result.map(it => it.id === dragItem.id ? { ...it, shortId: newShortId } : it);
+            result = reassignChildShortIds(result, dragItem.id, newShortId);
+          }
+        }
+        return result;
+      });
+    }
     setDragItem(null);
+    setDropInfo(null);
   };
 
   // Drop on empty zone (append to end of group)
   const handleDrop = (e: React.DragEvent, targetCategory: CategoryId, targetSection: string) => {
     e.preventDefault();
-    setDropTargetId(null);
+    setDropInfo(null);
     if (!dragItem) return;
 
     setItems((prev) => {
@@ -243,7 +540,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
     });
   };
 
-  const renderItemWithChildren = (item: Item) => {
+  const renderItemRecursive = (item: Item, depth: number = 0) => {
     const childItems = getChildren(item.id);
     return (
       <ItemRow
@@ -255,38 +552,46 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
         categories={CATEGORIES}
         dragHandlers={{
           onDragStart: (e) => handleDragStart(e, item),
-          onDragOver: (e) => { e.preventDefault(); e.stopPropagation(); setDropTargetId(item.id); },
-          onDragLeave: () => setDropTargetId(null),
+          onDragOver: (e) => handleItemDragOver(e, item),
+          onDragLeave: () => setDropInfo(null),
           onDrop: (e) => handleDropOnItem(e, item),
         }}
-        isDropTarget={dropTargetId === item.id && dragItem?.id !== item.id}
+        isDropTarget={dropInfo?.targetId === item.id && dragItem?.id !== item.id}
+        dropZone={dropInfo?.targetId === item.id ? dropInfo.zone : undefined}
         childCount={getChildCount(item.id)}
         doneCount={getDoneChildCount(item.id)}
         onAddChild={() => addItem(item.category, item.section, item.id)}
-        isChild={false}
+        depth={depth}
+        expanded={expandedItems.has(item.id)}
+        onToggleExpanded={() => toggleItemExpanded(item.id)}
+        childrenOpen={!collapsedChildren.has(item.id)}
+        onToggleChildren={() => toggleChildrenCollapsed(item.id)}
         allItems={items}
         reverseLinks={reverseLinks[item.id] || []}
         onScrollToItem={scrollToItem}
         highlighted={highlightedItemId === item.id}
-        onAddLinkedItem={(categoryId, linkType) => {
-          addItem(categoryId, item.section, null, [{ targetId: item.id, type: linkType }]);
-        }}
-        onAddBlockingItem={(categoryId) => {
-          // Create new item, then add depends-on link on current item pointing to it
+        onCreateAndLink={(categoryId, section, text, linkType, direction) => {
           const newItem = {
-            ...emptyItem(categoryId, item.section, null),
+            ...emptyItem(categoryId, section, null),
+            text,
             shortId: nextShortId(categoryId, null, items),
-            order: nextOrder(categoryId, item.section, items),
+            order: nextOrder(categoryId, section, items),
           };
-          update({
-            items: [...items, newItem].map(it =>
-              it.id === item.id ? { ...it, links: [...(it.links || []), { targetId: newItem.id, type: 'depends-on' as LinkType }] } : it
-            ),
-          });
+          if (direction === 'forward') {
+            // Link stored on the new item, pointing to current item
+            newItem.links = [{ targetId: item.id, type: linkType }];
+            update({ items: [...items, newItem] });
+          } else {
+            // Link stored on current item, pointing to new item
+            update({
+              items: [...items, newItem].map(it =>
+                it.id === item.id ? { ...it, links: [...(it.links || []), { targetId: newItem.id, type: linkType }] } : it
+              ),
+            });
+          }
         }}
         onAddLink={(link) => updateItem(item.id, { links: [...(item.links || []), link] })}
         onAddReverseLink={(targetId, link) => {
-          // Store link on the target item
           update({
             items: items.map(it =>
               it.id === targetId ? { ...it, links: [...(it.links || []), link] } : it
@@ -295,38 +600,10 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
         }}
         onRemoveLink={(targetId, type) => removeLinkFromItem(item.id, targetId, type)}
         onRemoveLinkFromSource={removeLinkFromItem}
+        onReparent={(newParentId) => reparentItem(item.id, newParentId)}
+        onMakeRoot={() => makeRootItem(item.id)}
       >
-        {childItems.map(child => (
-          <ItemRow
-            key={child.id}
-            item={child}
-            onUpdate={(patch) => updateItem(child.id, patch)}
-            onDelete={() => deleteItem(child.id)}
-            sections={sections}
-            categories={CATEGORIES}
-            dragHandlers={{}}
-            childCount={0}
-            doneCount={0}
-            onAddChild={() => {}}
-            isChild={true}
-            allItems={items}
-            reverseLinks={reverseLinks[child.id] || []}
-            onScrollToItem={scrollToItem}
-            highlighted={highlightedItemId === child.id}
-            onAddLinkedItem={() => {}}
-            onAddBlockingItem={() => {}}
-            onAddLink={(link) => updateItem(child.id, { links: [...(child.links || []), link] })}
-            onAddReverseLink={(targetId, link) => {
-              update({
-                items: items.map(it =>
-                  it.id === targetId ? { ...it, links: [...(it.links || []), link] } : it
-                ),
-              });
-            }}
-            onRemoveLink={(targetId, type) => removeLinkFromItem(child.id, targetId, type)}
-            onRemoveLinkFromSource={removeLinkFromItem}
-          />
-        ))}
+        {childItems.map(child => renderItemRecursive(child, depth + 1))}
       </ItemRow>
     );
   };
@@ -339,7 +616,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
         onDrop={(e) => handleDrop(e, categoryId, sectionName)}
         style={{ minHeight: 30 }}
       >
-        {roots.map((item) => renderItemWithChildren(item))}
+        {roots.map((item) => renderItemRecursive(item))}
         <button
           onClick={() => addItem(categoryId, sectionName)}
           style={buttonDashedStyle}
@@ -354,9 +631,10 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
 
   const renderBySection = () =>
     sections.map((section) => {
-      const sectionItems = filteredItems.filter((i) => i.section === section);
+      const sectionItems = searchFilteredItems.filter((i) => i.section === section);
       const collapsed = collapsedSections[section];
       const count = getRootItems(sectionItems).length;
+      if (searchQuery.trim() && count === 0 && sectionItems.length === 0) return null;
       return (
         <div key={section} style={{ marginBottom: spacing.xxl }}>
           <div
@@ -365,7 +643,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
               display: "flex", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm,
               borderBottom: `1px solid ${colors.borderLight}`, paddingBottom: spacing.sm,
               cursor: "pointer", userSelect: "none",
-              position: "sticky", top: 0, zIndex: 5,
+              position: "sticky", top: TOOLBAR_HEIGHT, zIndex: 5,
               background: colors.bgContent, paddingTop: spacing.sm,
             }}
           >
@@ -433,9 +711,10 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
 
   const renderByCategory = () =>
     CATEGORIES.map((cat) => {
-      const catItems = filteredItems.filter((i) => i.category === cat.id);
+      const catItems = searchFilteredItems.filter((i) => i.category === cat.id);
       const collapsed = collapsedSections[cat.id];
       const count = getRootItems(catItems).length;
+      if (searchQuery.trim() && count === 0 && catItems.length === 0) return null;
       return (
         <div key={cat.id} style={{ marginBottom: spacing.xxl }}>
           <div
@@ -444,7 +723,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
               display: "flex", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm,
               borderBottom: `2px solid ${cat.color}33`, paddingBottom: spacing.sm,
               cursor: "pointer", userSelect: "none",
-              position: "sticky", top: 0, zIndex: 5,
+              position: "sticky", top: TOOLBAR_HEIGHT, zIndex: 5,
               background: colors.bgContent, paddingTop: spacing.sm,
             }}
           >
@@ -611,8 +890,8 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div style={{ display: "flex", gap: spacing.sm, marginBottom: spacing.lg, flexWrap: "wrap", alignItems: "center" }}>
+      {/* Section pills */}
+      <div style={{ display: "flex", gap: spacing.sm, marginBottom: spacing.md, flexWrap: "wrap", alignItems: "center" }}>
         {sections.map((s) => (
           <span key={s} style={{ position: 'relative', display: 'inline-flex' }}>
             {renamingSection === s ? (
@@ -709,9 +988,87 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
             ...buttonDashedStyle, width: 'auto', padding: "2px 10px", fontSize: fontSizes.sm,
           }}>+ Section</button>
         )}
+      </div>
+
+      {/* Sticky toolbar */}
+      <div style={{
+        position: 'sticky', top: 0, zIndex: 10,
+        background: colors.bgContent,
+        borderBottom: `1px solid ${colors.borderLight}`,
+        padding: `${spacing.sm}px 0`,
+        marginBottom: spacing.md,
+        display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap',
+      }}>
+        {/* Search */}
+        <div style={{ position: 'relative', flex: '1 1 180px', maxWidth: 320 }}>
+          <span style={{
+            position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
+            color: colors.textMuted, fontSize: fontSizes.sm, pointerEvents: 'none',
+          }}>🔍</span>
+          <input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={`Search items… (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+K)`}
+            style={{
+              ...inputStyle,
+              fontSize: fontSizes.sm,
+              padding: '5px 8px 5px 28px',
+              width: '100%',
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{
+                position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', color: colors.textMuted,
+                cursor: 'pointer', fontSize: fontSizes.sm, padding: '2px 4px',
+              }}
+            >✕</button>
+          )}
+        </div>
 
         <span style={{ flex: 1 }} />
 
+        {/* Expand/collapse buttons */}
+        {itemsWithContent.size > 0 && (
+          <button
+            onClick={toggleAllDetails}
+            style={{
+              padding: `3px ${spacing.sm}px`,
+              fontSize: fontSizes.sm, fontFamily: fonts.body,
+              background: 'transparent',
+              color: colors.textMuted,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radii.md, cursor: 'pointer',
+              transition: transitions.fast,
+            }}
+            title={allDetailsOpen ? 'Close all details' : 'Open all details'}
+          >
+            {allDetailsOpen ? '📎 Close all' : '📎 Open all'}
+          </button>
+        )}
+
+        {parentIds.size > 0 && (
+          <button
+            onClick={toggleAllChildren}
+            style={{
+              padding: `3px ${spacing.sm}px`,
+              fontSize: fontSizes.sm, fontFamily: fonts.body,
+              background: 'transparent',
+              color: colors.textMuted,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radii.md, cursor: 'pointer',
+              transition: transitions.fast,
+            }}
+            title={allChildrenExpanded ? 'Collapse children' : 'Expand children'}
+          >
+            {allChildrenExpanded ? '▼ Collapse' : '▶ Expand'}
+          </button>
+        )}
+
+        {/* View mode toggle */}
         <div style={{
           display: 'inline-flex', borderRadius: radii.md, overflow: 'hidden',
           border: `1px solid ${colors.border}`,
@@ -732,6 +1089,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
           ))}
         </div>
 
+        {/* Show closed toggle */}
         <button
           onClick={() => setShowHidden(!showHidden)}
           style={{

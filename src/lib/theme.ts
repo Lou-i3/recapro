@@ -91,6 +91,8 @@ export const transitions = {
   normal: 'all 0.2s ease',
 } as const;
 
+export const TOOLBAR_HEIGHT = 48;
+
 // ─── Shared style presets ───
 
 export const labelStyle: CSSProperties = {

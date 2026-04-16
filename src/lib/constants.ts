@@ -62,7 +62,32 @@ export const LINK_LABELS: Record<LinkType, { forward: string; reverse: string }>
   'related':    { forward: 'related to',   reverse: 'related to' },
 };
 
-export const emptyItem = (categoryId: CategoryId, section: string, parentId: string | null = null): Item => ({
+export type LinkDirection = 'forward' | 'reverse';
+
+export interface QuickLinkConfig {
+  label: string;
+  targetCategory: CategoryId | null; // null = any category
+  linkType: LinkType;
+  direction: LinkDirection; // forward = link stored on new/selected, reverse = link stored on current
+}
+
+export const QUICK_LINK_BY_CATEGORY: Record<CategoryId, QuickLinkConfig[]> = {
+  decisions: [
+    { label: 'Action from this',    targetCategory: 'actions',   linkType: 'stems-from', direction: 'forward' },
+    { label: 'Question about this', targetCategory: 'questions', linkType: 'related',    direction: 'forward' },
+    { label: 'From question…',      targetCategory: 'questions', linkType: 'stems-from', direction: 'reverse' },
+  ],
+  actions: [
+    { label: 'From decision…',      targetCategory: 'decisions', linkType: 'stems-from', direction: 'reverse' },
+    { label: 'Blocked by…',         targetCategory: null,        linkType: 'depends-on', direction: 'forward' },
+  ],
+  questions: [
+    { label: 'Decision from this',  targetCategory: 'decisions', linkType: 'stems-from', direction: 'forward' },
+    { label: 'Action from this',    targetCategory: 'actions',   linkType: 'stems-from', direction: 'forward' },
+  ],
+};
+
+export const emptyItem =(categoryId: CategoryId, section: string, parentId: string | null = null): Item => ({
   id: crypto.randomUUID(),
   text: "",
   status: DEFAULT_STATUS[categoryId] || "todo",
