@@ -147,7 +147,7 @@ export default function ItemRow({
 
           <div style={{
             flex: 1, minWidth: 0,
-            textDecoration: isDimmed ? 'line-through' : 'none',
+            textDecorationLine: isDimmed ? 'line-through' : 'none',
             textDecorationColor: colors.textMuted,
           }}>
             <EditableText
