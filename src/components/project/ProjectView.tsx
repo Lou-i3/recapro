@@ -16,6 +16,10 @@ interface ProjectViewProps {
 export default function ProjectView({ project, onSave }: ProjectViewProps) {
   const { projectName, sections, items } = project;
 
+  // Always keep a ref to the latest items to avoid stale closure bugs in callbacks
+  const latestItemsRef = useRef<Item[]>(items);
+  latestItemsRef.current = items;
+
   const [viewMode, setViewMode] = useState<"bySection" | "byCategory">("bySection");
   const [showHidden, setShowHidden] = useState(false);
   const [newSection, setNewSection] = useState("");
@@ -48,12 +52,16 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
     });
   }, []);
 
-  const update = (patch: Partial<Project>) => onSave({ ...project, ...patch });
+  // Use onSave directly so patches merge with latestData.current in useProject,
+  // avoiding stale project fields being spread on top of current state.
+  const update = (patch: Partial<Project>) => onSave(patch);
 
   const setProjectName = (name: string) => update({ projectName: name });
+  // setItems uses the ref so it always operates on the latest items,
+  // even when called from memoized callbacks that closed over old state.
   const setItems = (fn: Item[] | ((prev: Item[]) => Item[])) => {
-    const next = typeof fn === "function" ? fn(items) : fn;
-    update({ items: next });
+    const next = typeof fn === "function" ? fn(latestItemsRef.current) : fn;
+    onSave({ items: next });
   };
   const setSections = (fn: string[] | ((prev: string[]) => string[])) => {
     const next = typeof fn === "function" ? fn(sections) : fn;
@@ -119,7 +127,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
     });
   };
 
-  const reparentItem = useCallback((itemId: string, newParentId: string) => {
+  const reparentItem = (itemId: string, newParentId: string) => {
     setItems((prev) => {
       const item = prev.find(i => i.id === itemId);
       const newParent = prev.find(i => i.id === newParentId);
@@ -147,9 +155,9 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
       updated = reassignChildShortIds(updated, itemId, newShortId);
       return updated;
     });
-  }, []);
+  };
 
-  const makeRootItem = useCallback((itemId: string) => {
+  const makeRootItem = (itemId: string) => {
     setItems((prev) => {
       const item = prev.find(i => i.id === itemId);
       if (!item) return prev;
@@ -167,7 +175,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
       updated = reassignChildShortIds(updated, itemId, newShortId);
       return updated;
     });
-  }, [nextShortId, nextOrder]);
+  };
 
   const addSection = () => {
     const name = newSection.trim();
@@ -447,6 +455,12 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
       // Reparent: make dragged item a child of targetItem
       if (dragItem.category === targetItem.category) {
         reparentItem(dragItem.id, targetItem.id);
+        // Ensure the target item's children are visible after reparenting
+        setCollapsedChildren(prev => {
+          const next = new Set(prev);
+          next.delete(targetItem.id);
+          return next;
+        });
       }
     } else {
       // Reorder: insert before or after target, within the same sibling group

@@ -59,6 +59,7 @@ export default function ItemRow({
   const [menuOpen, setMenuOpen] = useState(false);
   const [editingOwner, setEditingOwner] = useState(false);
   const [reparentPickerOpen, setReparentPickerOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const menuRef = useRef<HTMLSpanElement>(null);
   const cat = categories.find(c => c.id === item.category) || categories[0];
   const isDimmed = item.status === 'closed';
@@ -324,11 +325,7 @@ export default function ItemRow({
                   <button
                     onClick={() => {
                       setMenuOpen(false);
-                      const label = item.text || 'this item';
-                      const msg = hasChildren
-                        ? `Delete "${label}" and its ${childCount} sub-item${childCount > 1 ? 's' : ''}?`
-                        : `Delete "${label}"?`;
-                      if (window.confirm(msg)) onDelete();
+                      setDeleteConfirmOpen(true);
                     }}
                     style={{ ...menuItemStyle, color: colors.red }}
                     onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
@@ -397,6 +394,51 @@ export default function ItemRow({
             placeholder={`Search ${item.category} items…`}
             onClose={() => setReparentPickerOpen(false)}
           />
+        </div>
+      )}
+
+      {/* Delete confirmation */}
+      {deleteConfirmOpen && (
+        <div style={{
+          marginLeft: depth > 0 ? 24 : 0,
+          marginTop: 4,
+          padding: `${spacing.sm}px ${spacing.md}px`,
+          background: 'rgba(226,93,93,0.08)',
+          border: `1px solid rgba(226,93,93,0.25)`,
+          borderRadius: radii.md,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing.sm,
+        }}>
+          <span style={{ fontSize: fontSizes.sm, color: colors.text }}>
+            {hasChildren
+              ? `Delete "${item.text || 'this item'}" and its ${childCount} sub-item${childCount > 1 ? 's' : ''}?`
+              : `Delete "${item.text || 'this item'}"?`}
+          </span>
+          <div style={{ display: 'flex', gap: spacing.xs, flexShrink: 0 }}>
+            <button
+              onClick={() => setDeleteConfirmOpen(false)}
+              style={{
+                background: colors.surface2, border: `1px solid ${colors.border}`,
+                borderRadius: radii.sm, color: colors.textSecondary, cursor: 'pointer',
+                fontSize: fontSizes.sm, fontFamily: fonts.body, padding: '4px 10px',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { setDeleteConfirmOpen(false); onDelete(); }}
+              style={{
+                background: 'rgba(226,93,93,0.15)', border: `1px solid rgba(226,93,93,0.4)`,
+                borderRadius: radii.sm, color: colors.red, cursor: 'pointer',
+                fontSize: fontSizes.sm, fontFamily: fonts.body, padding: '4px 10px',
+                fontWeight: 600,
+              }}
+            >
+              Yes, delete
+            </button>
+          </div>
         </div>
       )}
 

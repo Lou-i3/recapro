@@ -57,6 +57,7 @@ export default function Sidebar({ projects, onCreateProject, onDeleteProject, on
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -149,26 +150,56 @@ export default function Sidebar({ projects, onCreateProject, onDeleteProject, on
               borderRadius: radii.lg, padding: spacing.xs, minWidth: 130,
               boxShadow: shadows.md,
             }}>
-              <button
-                onClick={() => {
-                  if (window.confirm(`Delete "${p.projectName}"?`)) {
-                    onDeleteProject(p.slug);
-                    setMenuOpen(null);
-                    router.push('/dashboard');
-                  }
-                }}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left',
-                  background: 'none', border: 'none', color: colors.red,
-                  cursor: 'pointer', padding: `${spacing.sm}px ${spacing.md}px`,
-                  fontSize: fontSizes.base, borderRadius: radii.sm,
-                  fontFamily: fonts.body, transition: transitions.fast,
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
-                onMouseLeave={e => e.currentTarget.style.background = 'none'}
-              >
-                Delete
-              </button>
+              {deleteConfirm !== p.slug ? (
+                <button
+                  onClick={() => { setDeleteConfirm(p.slug); }}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    background: 'none', border: 'none', color: colors.red,
+                    cursor: 'pointer', padding: `${spacing.sm}px ${spacing.md}px`,
+                    fontSize: fontSizes.base, borderRadius: radii.sm,
+                    fontFamily: fonts.body, transition: transitions.fast,
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  Delete
+                </button>
+              ) : (
+                <div style={{ padding: `${spacing.sm}px ${spacing.md}px` }}>
+                  <div style={{ fontSize: fontSizes.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>
+                    Delete &ldquo;{p.projectName}&rdquo;?
+                  </div>
+                  <div style={{ display: 'flex', gap: spacing.xs }}>
+                    <button
+                      onClick={() => setDeleteConfirm(null)}
+                      style={{
+                        background: colors.surface2, border: `1px solid ${colors.border}`,
+                        borderRadius: radii.sm, color: colors.textSecondary, cursor: 'pointer',
+                        fontSize: fontSizes.sm, fontFamily: fonts.body, padding: '3px 8px',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDeleteConfirm(null);
+                        setMenuOpen(null);
+                        onDeleteProject(p.slug);
+                        router.push('/dashboard');
+                      }}
+                      style={{
+                        background: 'rgba(226,93,93,0.15)', border: `1px solid rgba(226,93,93,0.4)`,
+                        borderRadius: radii.sm, color: colors.red, cursor: 'pointer',
+                        fontSize: fontSizes.sm, fontFamily: fonts.body, padding: '3px 8px',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Yes, delete
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
