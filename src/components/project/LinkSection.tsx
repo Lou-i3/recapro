@@ -5,6 +5,7 @@ import type { Item, CategoryId, ItemLink, LinkType } from "../../types";
 import { CATEGORIES, COMPLETED_STATUSES, QUICK_LINK_BY_CATEGORY, STATUS_BY_CATEGORY } from "../../lib/constants";
 import type { LinkDirection } from "../../lib/constants";
 import { colors, fonts, fontSizes, spacing, radii, transitions, shadows } from "../../lib/theme";
+import { CheckCircle, Circle, Lightbulb, Link as LinkIcon } from "../ui/icons";
 import ItemPicker from "./ItemPicker";
 
 interface LinkSectionProps {
@@ -121,9 +122,8 @@ export default function LinkSection({
   const renderLinkChip = (link: ResolvedLink, idx: number) => {
     const catColor = getCategoryColor(link.item.category);
     const statusColor = getStatusColor(link.item);
-    const depIcon = link.type === 'depends-on' && link.direction === 'forward'
-      ? (COMPLETED_STATUSES.has(link.item.status) ? '✅' : '🔴')
-      : null;
+    const isDepForward = link.type === 'depends-on' && link.direction === 'forward';
+    const depResolved = isDepForward && COMPLETED_STATUSES.has(link.item.status);
 
     return (
       <div
@@ -136,7 +136,17 @@ export default function LinkSection({
           borderLeft: `2px solid ${catColor}`,
         }}
       >
-        {depIcon && <span style={{ fontSize: 10 }}>{depIcon}</span>}
+        {isDepForward && (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center',
+            color: depResolved ? colors.green : colors.red,
+            flexShrink: 0,
+          }}>
+            {depResolved
+              ? <CheckCircle size={12} weight="fill" />
+              : <Circle size={12} weight="fill" />}
+          </span>
+        )}
         <span style={{
           fontSize: fontSizes.xs, fontFamily: fonts.mono,
           color: colors.textSecondary, minWidth: 26, flexShrink: 0,
@@ -216,7 +226,9 @@ export default function LinkSection({
           background: `${colors.green}12`, borderRadius: radii.sm,
           marginTop: spacing.xs,
         }}>
-          <span style={{ fontSize: fontSizes.sm }}>💡</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', color: colors.green }}>
+            <Lightbulb size={14} weight="regular" />
+          </span>
           <span style={{ fontSize: fontSizes.xs, color: colors.green, flex: 1 }}>
             All dependencies resolved
           </span>
@@ -241,7 +253,9 @@ export default function LinkSection({
           background: `${colors.red}08`, borderRadius: radii.sm,
           marginTop: spacing.xs,
         }}>
-          <span style={{ fontSize: fontSizes.sm }}>🔗</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', color: colors.red }}>
+            <LinkIcon size={14} weight="regular" />
+          </span>
           <span style={{ fontSize: fontSizes.xs, color: colors.textMuted, flex: 1 }}>
             Blocked item — link the blocker?
           </span>
@@ -433,6 +447,7 @@ function LinkExistingPicker({
       <div style={{ maxHeight: 200, overflowY: 'auto' }}>
         {results.map(target => {
           const tCat = CATEGORIES.find(c => c.id === target.category) || CATEGORIES[0];
+          const TCatIcon = tCat.icon;
           return (
             <button
               key={target.id}
@@ -452,7 +467,9 @@ function LinkExistingPicker({
               <span style={{ fontSize: fontSizes.xs, fontFamily: fonts.mono, color: tCat.color, minWidth: 28 }}>
                 {target.shortId}
               </span>
-              <span style={{ fontSize: 11 }}>{tCat.icon}</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', color: tCat.color }}>
+                <TCatIcon size={12} weight="regular" />
+              </span>
               <span style={{
                 flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>

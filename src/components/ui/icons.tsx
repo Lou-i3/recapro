@@ -10,4 +10,16 @@ export {
   CaretRightIcon as ChevronRight,
   CaretUpIcon as ChevronUp,
   CaretLeftIcon as ChevronLeft,
+  ListIcon as List,
+  TargetIcon as Target,
+  WrenchIcon as Wrench,
+  ChatCircleIcon as ChatCircle,
+  LightbulbIcon as Lightbulb,
+  LinkIcon as Link,
+  DownloadSimpleIcon as DownloadSimple,
+  UploadSimpleIcon as UploadSimple,
+  CheckCircleIcon as CheckCircle,
+  CircleIcon as Circle,
 } from '@phosphor-icons/react/dist/ssr';
+
+export type { Icon } from '@phosphor-icons/react';

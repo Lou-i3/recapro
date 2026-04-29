@@ -27,8 +27,8 @@ function getStatusColor(item: Item): string {
   return match?.color || colors.textMuted;
 }
 
-function getCategoryIcon(categoryId: CategoryId): string {
-  return CATEGORIES.find(c => c.id === categoryId)?.icon || '';
+function getCategoryIcon(categoryId: CategoryId) {
+  return CATEGORIES.find(c => c.id === categoryId)?.icon || null;
 }
 
 export default function ItemPicker({
@@ -161,7 +161,7 @@ export default function ItemPicker({
                   padding: '4px 6px', width: '100%',
                 }}
               >
-                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
           )}
@@ -224,9 +224,14 @@ export default function ItemPicker({
                 fontSize: fontSizes.xs, fontFamily: fonts.mono,
                 color: colors.textMuted, flexShrink: 0, minWidth: 26,
               }}>{item.shortId}</span>
-              <span style={{ fontSize: 10, flexShrink: 0 }}>
-                {getCategoryIcon(item.category)}
-              </span>
+              {(() => {
+                const Icon = getCategoryIcon(item.category);
+                return Icon ? (
+                  <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', color: colors.textMuted }}>
+                    <Icon size={12} weight="regular" />
+                  </span>
+                ) : null;
+              })()}
               <span style={{
                 width: 6, height: 6, borderRadius: '50%',
                 background: getStatusColor(item), flexShrink: 0,

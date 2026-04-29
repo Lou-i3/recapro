@@ -30,6 +30,7 @@ export default function ActivityFeed({ projects }: ActivityFeedProps) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {recent.map(item => {
         const cat = CATEGORIES.find(c => c.id === item.category) || CATEGORIES[0];
+        const CatIcon = cat.icon;
         const isTerminal = COMPLETED_STATUSES.has(item.status);
         const statusDef = (STATUS_BY_CATEGORY[item.category] || []).find(s => s.id === item.status);
         const date = item.createdAt
@@ -50,7 +51,9 @@ export default function ActivityFeed({ projects }: ActivityFeedProps) {
             onMouseEnter={e => e.currentTarget.style.background = colors.surface3}
             onMouseLeave={e => e.currentTarget.style.background = colors.surface1}
           >
-            <span style={{ fontSize: fontSizes.md }}>{cat.icon}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', color: cat.color }}>
+              <CatIcon size={16} weight="regular" />
+            </span>
             <span style={{
               flex: 1, fontSize: fontSizes.base, color: isTerminal ? colors.textMuted : colors.text,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

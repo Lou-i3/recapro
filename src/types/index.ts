@@ -50,10 +50,12 @@ export interface Project {
 
 // ─── Configuration Types ───
 
+import type { Icon } from '@phosphor-icons/react';
+
 export interface Category {
   readonly id: CategoryId;
   readonly label: string;
-  readonly icon: string;
+  readonly icon: Icon;
   readonly color: string;
 }
 

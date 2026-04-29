@@ -9,6 +9,7 @@ import ItemPicker from "./ItemPicker";
 import type { Item, Category, PriorityId, CategoryId, ItemLink, LinkType } from "../../types";
 import type { LinkDirection } from "../../lib/constants";
 import { colors, fonts, fontSizes, spacing, radii, transitions, shadows } from "../../lib/theme";
+import { Paperclip, ChevronDown, ChevronRight } from "../ui/icons";
 
 interface DragHandlers {
   onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
@@ -66,7 +67,6 @@ export default function ItemRow({
   const hasChildren = childCount > 0;
 
   const totalLinks = (item.links?.length || 0) + reverseLinks.length;
-  const hasContent = !!item.note || totalLinks > 0;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -125,12 +125,13 @@ export default function ItemRow({
             <span
               onClick={hasChildren ? onToggleChildren : undefined}
               style={{
-                fontSize: fontSizes.xs, color: hasChildren ? colors.textMuted : 'transparent',
-                userSelect: 'none', width: 14, textAlign: 'center', flexShrink: 0,
+                color: hasChildren ? colors.textMuted : 'transparent',
+                userSelect: 'none', width: 14, flexShrink: 0,
                 cursor: hasChildren ? 'pointer' : 'default',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
-              {childrenOpen ? '▼' : '▶'}
+              {childrenOpen ? <ChevronDown size={12} weight="bold" /> : <ChevronRight size={12} weight="bold" />}
             </span>
           )}
 
@@ -214,11 +215,12 @@ export default function ItemRow({
             <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
               <button onClick={onToggleExpanded} style={{
                 background: "none", border: "none",
-                color: hasContent ? colors.purple : colors.dimmed,
-                cursor: "pointer", fontSize: fontSizes.md, padding: "2px 4px",
+                color: colors.textMuted,
+                cursor: "pointer", padding: "2px 4px",
+                display: "inline-flex", alignItems: "center",
                 transition: transitions.fast,
               }} title="Links & notes">
-                📎
+                <Paperclip size={16} weight="regular" />
               </button>
               {totalLinks > 0 && (
                 <span style={{
@@ -301,7 +303,7 @@ export default function ItemRow({
                         flex: 1,
                       }}
                     >
-                      {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+                      {categories.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                     </select>
                   </div>
 

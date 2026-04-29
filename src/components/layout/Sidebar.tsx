@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, type CSSProperties } from 'react';
 import { colors, fonts, fontSizes, spacing, radii, shadows, transitions, inputStyle } from '../../lib/theme';
+import { ChevronLeft } from '../ui/icons';
 import type { Project, ProjectSummary } from '../../types';
 
 const linkStyle: CSSProperties = {
@@ -256,7 +257,9 @@ export default function Sidebar({ projects, onCreateProject, onDeleteProject, on
         onMouseEnter={e => e.currentTarget.style.color = colors.text}
         onMouseLeave={e => e.currentTarget.style.color = colors.textMuted}
       >
-        <span style={{ fontSize: fontSizes.md }}>◀</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+          <ChevronLeft size={14} weight="bold" />
+        </span>
         Collapse
       </button>
     </nav>

@@ -73,5 +73,5 @@ src/
 - [ ] **Theme** — light/dark toggle
 - [ ] **Notion export** — generate Notion pages via API
 - [ ] **Auto-suggest decisions** — propose creating a decision when a question is marked as answered
-- [ ] **Finish icon migration** — Phosphor Icons now powers all toolbar/menu controls; replace remaining content emojis (categories 🎯🔧💬, priorities ▲◆▽, import/export buttons 📥📤)
+- [ ] **Replace priority glyphs** — priorities still use unicode shapes (▲◆▽) on `PriorityDot`; could swap to Phosphor icons for visual consistency with the rest of the UI
 - [ ] **Collapse/expand state persistence** — remember collapsed sections across sessions

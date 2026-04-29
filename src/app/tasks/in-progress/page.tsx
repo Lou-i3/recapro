@@ -111,13 +111,13 @@ export default function TasksInProgressPage() {
             <span
               onClick={hasChildren ? () => hierarchy.toggleChildrenCollapsed(item.id) : undefined}
               style={{
-                fontSize: fontSizes.xs,
                 color: hasChildren ? colors.textMuted : 'transparent',
-                userSelect: 'none', width: 14, textAlign: 'center', flexShrink: 0,
+                userSelect: 'none', width: 14, flexShrink: 0,
                 cursor: hasChildren ? 'pointer' : 'default',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
-              {childrenVisible ? '▼' : '▶'}
+              {childrenVisible ? <ChevronDown size={12} weight="bold" /> : <ChevronRight size={12} weight="bold" />}
             </span>
 
             {item.shortId && (
@@ -203,13 +203,14 @@ export default function TasksInProgressPage() {
                 onClick={() => hierarchy.toggleItemExpanded(item.id)}
                 style={{
                   background: 'none', border: 'none',
-                  color: links.count > 0 ? colors.purple : colors.dimmed,
-                  cursor: 'pointer', fontSize: fontSizes.md, padding: '2px 4px',
+                  color: colors.textMuted,
+                  cursor: 'pointer', padding: '2px 4px',
+                  display: 'inline-flex', alignItems: 'center',
                   transition: transitions.fast,
                 }}
                 title={expanded ? 'Hide links' : 'Show links'}
               >
-                📎
+                <Paperclip size={16} weight="regular" />
               </button>
               {links.count > 0 && (
                 <span style={{

@@ -7,7 +7,7 @@ import { colors, categoryBg, fonts, fontSizes, spacing, radii, transitions, shad
 import EditableText from "./EditableText";
 import ItemRow from "./ItemRow";
 import Toolbar from "../ui/Toolbar";
-import { Paperclip, ChevronDown, ChevronRight, ChevronUp, FolderSimple, Pencil, X } from "../ui/icons";
+import { Paperclip, ChevronDown, ChevronRight, ChevronUp, FolderSimple, Pencil, X, DownloadSimple, UploadSimple } from "../ui/icons";
 import { useSearchAndFilter } from "../../hooks/useSearchAndFilter";
 import { useItemHierarchy } from "../../hooks/useItemHierarchy";
 import { useItemLinks } from "../../hooks/useItemLinks";
@@ -612,8 +612,8 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
             <span style={{ fontSize: fontSizes.sm, color: colors.textMuted }}>
               {count} item{count !== 1 ? "s" : ""}
             </span>
-            <span style={{ marginLeft: 'auto', fontSize: fontSizes.xs, color: colors.textMuted, transition: transitions.fast }}>
-              {collapsed ? "▶" : "▼"}
+            <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', color: colors.textMuted, transition: transitions.fast }}>
+              {collapsed ? <ChevronRight size={12} weight="bold" /> : <ChevronDown size={12} weight="bold" />}
             </span>
           </div>
           {!collapsed && <div style={{ padding: `0 ${spacing.xxl}px` }}>{CATEGORIES.map((cat) => {
@@ -621,6 +621,7 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
             const subKey = `${section}:${cat.id}`;
             const subCollapsed = collapsedSections[subKey];
             const subCount = getRootItems(catItems).length;
+            const CatIcon = cat.icon;
             if (subCount === 0 && catItems.length === 0) {
               return (
                 <div key={cat.id} style={{ marginBottom: spacing.sm }}
@@ -628,9 +629,13 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
                   onDrop={(e) => handleDrop(e, cat.id, section)}
                 >
                   <div
-                    style={{ fontSize: fontSizes.sm, color: colors.textMuted, marginBottom: 2, paddingLeft: spacing.xs, cursor: 'default' }}
+                    style={{
+                      fontSize: fontSizes.sm, color: colors.textMuted, marginBottom: 2,
+                      paddingLeft: spacing.xs, cursor: 'default',
+                      display: 'flex', alignItems: 'center', gap: spacing.xs,
+                    }}
                   >
-                    {cat.icon} {cat.label}
+                    <CatIcon size={14} weight="regular" /> {cat.label}
                   </div>
                   <button onClick={() => addItem(cat.id, section)} style={{
                     ...buttonDashedStyle, padding: "3px 10px", fontSize: fontSizes.sm, borderColor: colors.borderLight,
@@ -654,10 +659,10 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
                     display: 'flex', alignItems: 'center', gap: spacing.xs,
                   }}
                 >
-                  {cat.icon} {cat.label}
+                  <CatIcon size={14} weight="regular" /> {cat.label}
                   <span style={{ color: colors.textMuted, fontSize: fontSizes.xs }}>{subCount}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: fontSizes.xs, color: colors.textMuted }}>
-                    {subCollapsed ? '▶' : '▼'}
+                  <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', color: colors.textMuted }}>
+                    {subCollapsed ? <ChevronRight size={12} weight="bold" /> : <ChevronDown size={12} weight="bold" />}
                   </span>
                 </div>
                 {!subCollapsed && renderItems(catItems, section, cat.id)}
@@ -674,6 +679,7 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
       const collapsed = collapsedSections[cat.id];
       const count = getRootItems(catItems).length;
       if (searchQuery.trim() && count === 0 && catItems.length === 0) return null;
+      const CatIcon = cat.icon;
       return (
         <div key={cat.id} style={{ marginBottom: spacing.xxl }}>
           <div
@@ -687,13 +693,13 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
               padding: `${spacing.sm}px ${spacing.xxl}px`,
             }}
           >
-            <span style={{ fontSize: 18 }}>{cat.icon}</span>
+            <CatIcon size={18} weight="regular" />
             <span style={{ fontWeight: 700, fontSize: fontSizes.lg, color: cat.color }}>
               {cat.label}
             </span>
             <span style={{ fontSize: fontSizes.sm, color: colors.textMuted }}>{count}</span>
-            <span style={{ marginLeft: 'auto', fontSize: fontSizes.xs, color: colors.textMuted, transition: transitions.fast }}>
-              {collapsed ? "▶" : "▼"}
+            <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', color: colors.textMuted, transition: transitions.fast }}>
+              {collapsed ? <ChevronRight size={12} weight="bold" /> : <ChevronDown size={12} weight="bold" />}
             </span>
           </div>
           {!collapsed && <div style={{ padding: `0 ${spacing.xxl}px` }}>{sections.map((section) => {
@@ -714,10 +720,10 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
                     display: 'flex', alignItems: 'center', gap: spacing.xs,
                   }}
                 >
-                  📁 {section}
+                  <FolderSimple size={12} weight="regular" /> {section}
                   <span style={{ fontSize: fontSizes.xs }}>{subCount}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: fontSizes.xs }}>
-                    {subCollapsed ? '▶' : '▼'}
+                  <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }}>
+                    {subCollapsed ? <ChevronRight size={12} weight="bold" /> : <ChevronDown size={12} weight="bold" />}
                   </span>
                 </div>
                 {!subCollapsed && (getRootItems(sItems).length > 0 ? renderItems(sItems, section, cat.id) : (
@@ -993,7 +999,9 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
             </div>
           </div>
 
-          {catStats.map(cat => (
+          {catStats.map(cat => {
+            const CatIcon = cat.icon;
+            return (
             <div key={cat.id} style={{
               background: categoryBg[cat.id] || colors.surface2, borderRadius: radii.lg,
               padding: `${spacing.md}px ${spacing.lg}px`,
@@ -1001,7 +1009,7 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
               borderLeft: `3px solid ${cat.color}`,
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: spacing.sm }}>
-                <span style={{ fontSize: 12 }}>{cat.icon}</span>
+                <CatIcon size={12} weight="regular" />
                 <span style={{ ...labelStyle, fontSize: fontSizes.xs, margin: 0 }}>{cat.label}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
@@ -1027,7 +1035,8 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
 
           {(stats.high > 0 || stats.blocked > 0) && (
             <div style={{
@@ -1064,11 +1073,11 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
         display: "flex", gap: spacing.sm, justifyContent: "flex-end",
         paddingInline: spacing.xxl,
       }}>
-        <button onClick={handleImport} style={buttonStyle}>
-          📥 Import JSON
+        <button onClick={handleImport} style={{ ...buttonStyle, display: 'inline-flex', alignItems: 'center', gap: spacing.xs }}>
+          <DownloadSimple size={14} weight="regular" /> Import JSON
         </button>
-        <button onClick={handleExport} style={buttonPrimaryStyle}>
-          📤 Export JSON
+        <button onClick={handleExport} style={{ ...buttonPrimaryStyle, display: 'inline-flex', alignItems: 'center', gap: spacing.xs }}>
+          <UploadSimple size={14} weight="regular" /> Export JSON
         </button>
       </div>
     </div>

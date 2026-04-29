@@ -5,6 +5,7 @@ import { useProject } from '../../../hooks/useProject';
 import ProjectView from '../../../components/project/ProjectView';
 import MarkdownPanel from '../../../components/project/MarkdownPanel';
 import { colors, fonts, fontSizes, spacing, radii } from '../../../lib/theme';
+import { X, ChevronRight } from '../../../components/ui/icons';
 
 export default function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
@@ -36,11 +37,12 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
         fontSize: fontSizes.sm,
         fontFamily: fonts.mono,
         transition: 'color 0.15s ease',
+        display: 'inline-flex', alignItems: 'center', gap: spacing.xs,
       }}
       onMouseEnter={e => e.currentTarget.style.color = colors.text}
       onMouseLeave={e => e.currentTarget.style.color = notesVisible ? colors.textSecondary : colors.textMuted}
     >
-      {notesVisible ? 'Notes ✕' : 'Notes ▸'}
+      Notes {notesVisible ? <X size={12} weight="bold" /> : <ChevronRight size={12} weight="bold" />}
     </button>
   );
 

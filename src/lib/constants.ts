@@ -1,9 +1,10 @@
 import type { Category, PriorityLevel, StatusOption, CategoryId, ItemStatus, Item, LinkType } from '../types';
+import { Target, Wrench, ChatCircle } from '../components/ui/icons';
 
 export const CATEGORIES: readonly Category[] = [
-  { id: "decisions", label: "Decisions", icon: "🎯", color: "#E8B931" },
-  { id: "actions", label: "Actions", icon: "🔧", color: "#4EA8DE" },
-  { id: "questions", label: "Questions", icon: "💬", color: "#C77DBA" },
+  { id: "decisions", label: "Decisions", icon: Target, color: "#E8B931" },
+  { id: "actions", label: "Actions", icon: Wrench, color: "#4EA8DE" },
+  { id: "questions", label: "Questions", icon: ChatCircle, color: "#C77DBA" },
 ] as const;
 
 export const PRIORITY_LEVELS: readonly PriorityLevel[] = [
