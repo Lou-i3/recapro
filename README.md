@@ -24,7 +24,7 @@ The app is available at http://localhost:3000.
 - **Link display** — grouped by type (Stems from, Leads to, Depends on, Blocks, Related) with status indicators, section badges, and category colors
 - **Dependency indicators** — visual status on dependency links with unblock suggestions
 - **Search & filter** — real-time search on text, shortId, notes, owner (⌘K shortcut), parent/child inclusion
-- **Sticky toolbar** — search, view mode, show closed, expand/collapse all — always visible on scroll
+- **Sticky toolbar** — search, sections dropdown, view mode, show hidden, expand/collapse all — always visible on scroll, shared between project view and task pages
 - **Markdown notes** — per-project notes panel with markdown preview
 - **Drag & drop** — reorder items within any level, reparent by dropping on an item (3-zone detection)
 - **Reparenting** — move items between parents via drag & drop or context menu (Make child of… / Make root item)
@@ -38,6 +38,8 @@ The app is available at http://localhost:3000.
 - **Next.js 16** (App Router) + **React 19** + **TypeScript**
 - Built-in API Routes (JSON storage on filesystem in `data/`)
 - Inline styles with design tokens (dark theme)
+- Phosphor Icons (`@phosphor-icons/react`) for UI controls
+- `react-markdown` + `remark-gfm` for markdown rendering
 
 ## Structure
 
@@ -51,19 +53,25 @@ src/
 ├── components/             # React components
 │   ├── dashboard/          # StatsSection, ActivityFeed
 │   ├── layout/             # Layout, Sidebar
-│   └── project/            # ProjectView, ItemRow, ItemPicker, LinkSection, EditableText, etc.
-├── hooks/                  # useProject, useProjects, useAllProjects
+│   ├── project/            # ProjectView, ItemRow, ItemPicker, LinkSection, EditableText, etc.
+│   └── ui/                 # Toolbar (shared), icons (Phosphor re-exports)
+├── hooks/                  # useProject, useProjects, useAllProjects, useSearchAndFilter, useItemHierarchy, useItemLinks
 ├── lib/                    # constants, theme, api, storage
 └── types/                  # Central TypeScript types
 ```
 
 ## Roadmap
 
+- [ ] **Sort items** — sort by priority (high → low) or last-update (desc), applied within each section×category group. Sort-by-date requires adding `updatedAt: number` to `Item` and bumping it on all mutations (update/add/drag/reparent/link ops) — invasive, needs careful propagation
+- [ ] **Filters** — by priority, owner, status, category. Should live in the Toolbar (icon + popover or dedicated "Filters (N)" button)
+- [ ] **Sort & filters on task pages** — same controls as ProjectView
 - [ ] **MCP Server** — allow Claude to interact with project data ([plan](docs/plan-mcp-server.md))
+- [ ] **My Day feature** — checkbox on `ItemRow` + dashboard section listing today's focus items. Store `markedForTodayAt: number` timestamp, auto-filter to today only (rolling reset at midnight, no manual clear needed)
+
 - [ ] **Enhanced import/export** — merge, partial export, CSV format
 - [ ] **History / audit** — log status changes
 - [ ] **Theme** — light/dark toggle
 - [ ] **Notion export** — generate Notion pages via API
 - [ ] **Auto-suggest decisions** — propose creating a decision when a question is marked as answered
-- [ ] **SVG icon library** — replace emojis with proper SVG icons ([Phosphor Icons](https://phosphoricons.com/) or [Next Icons](https://www.nexticons.com/))
+- [ ] **Finish icon migration** — Phosphor Icons now powers all toolbar/menu controls; replace remaining content emojis (categories 🎯🔧💬, priorities ▲◆▽, import/export buttons 📥📤)
 - [ ] **Collapse/expand state persistence** — remember collapsed sections across sessions
