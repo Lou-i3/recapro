@@ -3,54 +3,46 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { CATEGORIES, COMPLETED_STATUSES, HIDDEN_STATUSES, CATEGORY_PREFIX, emptyItem } from "../../lib/constants";
 import { exportProjectJSON, importProjectJSON } from "../../lib/storage";
-import { colors, categoryBg, fonts, fontSizes, spacing, radii, transitions, shadows, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle, TOOLBAR_HEIGHT } from "../../lib/theme";
+import { colors, categoryBg, fonts, fontSizes, spacing, radii, transitions, shadows, labelStyle, buttonStyle, buttonPrimaryStyle, buttonDashedStyle, inputStyle } from "../../lib/theme";
 import EditableText from "./EditableText";
 import ItemRow from "./ItemRow";
+import Toolbar from "../ui/Toolbar";
+import { Paperclip, ChevronDown, ChevronRight, ChevronUp, FolderSimple, Pencil, X } from "../ui/icons";
+import { useSearchAndFilter } from "../../hooks/useSearchAndFilter";
+import { useItemHierarchy } from "../../hooks/useItemHierarchy";
+import { useItemLinks } from "../../hooks/useItemLinks";
 import type { Project, Item, CategoryId, ItemLink, LinkType } from "../../types";
 
 interface ProjectViewProps {
   project: Project;
   onSave: (data: Partial<Project>) => void;
+  notesButton?: React.ReactNode;
 }
 
-export default function ProjectView({ project, onSave }: ProjectViewProps) {
+export default function ProjectView({ project, onSave, notesButton }: ProjectViewProps) {
   const { projectName, sections, items } = project;
 
   // Always keep a ref to the latest items to avoid stale closure bugs in callbacks
   const latestItemsRef = useRef<Item[]>(items);
   latestItemsRef.current = items;
 
+  const { filteredItems, searchQuery, setSearchQuery, showHidden, setShowHidden } =
+    useSearchAndFilter(items);
+  const {
+    expandedItems, collapsedChildren,
+    setExpandedItems, setCollapsedChildren,
+    toggleItemExpanded, toggleChildrenCollapsed,
+  } = useItemHierarchy();
+  const { reverseLinks } = useItemLinks(items);
+
   const [viewMode, setViewMode] = useState<"bySection" | "byCategory">("bySection");
-  const [showHidden, setShowHidden] = useState(false);
   const [newSection, setNewSection] = useState("");
   const [addingSectionOpen, setAddingSectionOpen] = useState(false);
   const [dragItem, setDragItem] = useState<Item | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  const [collapsedChildren, setCollapsedChildren] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sectionMenu, setSectionMenu] = useState<string | null>(null);
+  const [sectionsOpen, setSectionsOpen] = useState(false);
   const [renamingSection, setRenamingSection] = useState<string | null>(null);
-  const sectionMenuRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-
-  const toggleItemExpanded = useCallback((itemId: string) => {
-    setExpandedItems(prev => {
-      const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId);
-      else next.add(itemId);
-      return next;
-    });
-  }, []);
-
-  const toggleChildrenCollapsed = useCallback((itemId: string) => {
-    setCollapsedChildren(prev => {
-      const next = new Set(prev);
-      if (next.has(itemId)) next.delete(itemId);
-      else next.add(itemId);
-      return next;
-    });
-  }, []);
+  const sectionsMenuRef = useRef<HTMLDivElement>(null);
 
   // Use onSave directly so patches merge with latestData.current in useProject,
   // avoiding stale project fields being spread on top of current state.
@@ -188,89 +180,44 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
 
   const removeSection = (s: string) => {
     if (sections.length <= 1) return;
-    const fallback = sections.find((x) => x !== s) || sections[0];
-    setItems((prev) => prev.map((it) => (it.section === s ? { ...it, section: fallback } : it)));
-    setSections((prev) => prev.filter((x) => x !== s));
+    const hasOrphans = items.some((it) => it.section === s);
+    const remaining = sections.filter((x) => x !== s);
+    const nextSections = hasOrphans && !remaining.includes("No section")
+      ? [...remaining, "No section"]
+      : remaining;
+    onSave({
+      ...project,
+      sections: nextSections,
+      items: items.map((it) => (it.section === s ? { ...it, section: "No section" } : it)),
+    });
   };
 
   const renameSection = (oldName: string, newName: string) => {
     const name = newName.trim();
     if (!name || name === oldName || sections.includes(name)) return;
-    setSections((prev) => prev.map(s => s === oldName ? name : s));
-    setItems((prev) => prev.map(it => it.section === oldName ? { ...it, section: name } : it));
+    onSave({
+      ...project,
+      sections: sections.map((s) => (s === oldName ? name : s)),
+      items: items.map((it) => (it.section === oldName ? { ...it, section: name } : it)),
+    });
   };
 
   useEffect(() => {
-    if (!sectionMenu) return;
+    if (!sectionsOpen) return;
     const handle = (e: MouseEvent) => {
-      if (sectionMenuRef.current && !sectionMenuRef.current.contains(e.target as Node)) setSectionMenu(null);
+      if (sectionsMenuRef.current && !sectionsMenuRef.current.contains(e.target as Node)) {
+        setSectionsOpen(false);
+        setRenamingSection(null);
+      }
     };
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
-  }, [sectionMenu]);
+  }, [sectionsOpen]);
 
   const toggleCollapse = (key: string) =>
     setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  // Cmd+K / Ctrl+K shortcut for search
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, []);
-
   const isCompleted = (item: Item) => COMPLETED_STATUSES.has(item.status);
-  const isHidden = (item: Item) => HIDDEN_STATUSES.has(item.status);
-  const filteredItems = showHidden ? items : items.filter((i) => !isHidden(i));
-
-  // Search filtering with parent/child inclusion
-  const searchFilteredItems = useMemo(() => {
-    if (!searchQuery.trim()) return filteredItems;
-    const q = searchQuery.toLowerCase();
-    const itemMap = new Map(filteredItems.map(i => [i.id, i]));
-
-    // Find direct matches
-    const directMatches = new Set<string>();
-    for (const item of filteredItems) {
-      if (
-        item.text.toLowerCase().includes(q) ||
-        item.shortId?.toLowerCase().includes(q) ||
-        item.note?.toLowerCase().includes(q) ||
-        item.owner?.toLowerCase().includes(q)
-      ) {
-        directMatches.add(item.id);
-      }
-    }
-
-    // Include descendants of matches
-    const includedIds = new Set(directMatches);
-    const addDescendants = (parentId: string) => {
-      for (const item of filteredItems) {
-        if (item.parentId === parentId && !includedIds.has(item.id)) {
-          includedIds.add(item.id);
-          addDescendants(item.id);
-        }
-      }
-    };
-    for (const id of directMatches) addDescendants(id);
-
-    // Include ancestors of matches
-    const addAncestors = (itemId: string) => {
-      const item = itemMap.get(itemId);
-      if (item?.parentId && !includedIds.has(item.parentId)) {
-        includedIds.add(item.parentId);
-        addAncestors(item.parentId);
-      }
-    };
-    for (const id of directMatches) addAncestors(id);
-
-    return filteredItems.filter(i => includedIds.has(i.id));
-  }, [filteredItems, searchQuery]);
 
   const rootItems = items.filter(i => !i.parentId);
   const stats = {
@@ -285,19 +232,6 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
     return { ...cat, total: catItems.length, done, rate: catItems.length > 0 ? Math.round((done / catItems.length) * 100) : 0 };
   });
   const overallRate = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0;
-
-  // Compute reverse links: for each item, which other items link TO it
-  const reverseLinks = useMemo(() => {
-    const map: Record<string, { sourceId: string; type: LinkType }[]> = {};
-    for (const item of items) {
-      if (!item.links) continue;
-      for (const link of item.links) {
-        if (!map[link.targetId]) map[link.targetId] = [];
-        map[link.targetId].push({ sourceId: item.id, type: link.type });
-      }
-    }
-    return map;
-  }, [items]);
 
   // Expand/collapse all details (items with content)
   const itemsWithContent = useMemo(() => {
@@ -397,7 +331,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
     setTimeout(() => setHighlightedItemId(null), 2500);
   }, [items, showHidden, viewMode]);
 
-  const getChildren = (parentId: string) => searchFilteredItems.filter(i => i.parentId === parentId);
+  const getChildren = (parentId: string) => filteredItems.filter(i => i.parentId === parentId);
   const getRootItems = (list: Item[]) => list.filter(i => !i.parentId).sort((a, b) => (a.order || 0) - (b.order || 0));
   const getChildCount = (parentId: string) => items.filter(i => i.parentId === parentId).length;
   const getDoneChildCount = (parentId: string) => items.filter(i => i.parentId === parentId && isCompleted(i)).length;
@@ -513,8 +447,9 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
     if (!dragItem) return;
 
     setItems((prev) => {
+      const wasChild = dragItem.parentId !== null;
       const updated = prev.map(it => it.id === dragItem.id
-        ? { ...it, category: targetCategory, section: targetSection }
+        ? { ...it, category: targetCategory, section: targetSection, parentId: null }
         : it
       );
       // Put dragged item at the end, then reindex
@@ -522,10 +457,19 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
         .filter(it => it.category === targetCategory && it.section === targetSection && !it.parentId)
         .sort((a, b) => (a.order || 0) - (b.order || 0));
       const ordered = groupItems.filter(it => it.id !== dragItem.id);
-      ordered.push(groupItems.find(it => it.id === dragItem.id)!);
+      const dragged = groupItems.find(it => it.id === dragItem.id);
+      if (dragged) ordered.push(dragged);
       const orderMap = new Map<string, number>();
       ordered.forEach((it, i) => orderMap.set(it.id, i + 1));
-      return updated.map(it => orderMap.has(it.id) ? { ...it, order: orderMap.get(it.id)! } : it);
+      let result = updated.map(it => orderMap.has(it.id) ? { ...it, order: orderMap.get(it.id)! } : it);
+
+      // Promoted child → root: reassign its shortId and cascade to descendants
+      if (wasChild) {
+        const newShortId = nextShortId(targetCategory, null, result.filter(it => it.id !== dragItem.id));
+        result = result.map(it => it.id === dragItem.id ? { ...it, shortId: newShortId } : it);
+        result = reassignChildShortIds(result, dragItem.id, newShortId);
+      }
+      return result;
     });
     setDragItem(null);
   };
@@ -645,7 +589,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
 
   const renderBySection = () =>
     sections.map((section) => {
-      const sectionItems = searchFilteredItems.filter((i) => i.section === section);
+      const sectionItems = filteredItems.filter((i) => i.section === section);
       const collapsed = collapsedSections[section];
       const count = getRootItems(sectionItems).length;
       if (searchQuery.trim() && count === 0 && sectionItems.length === 0) return null;
@@ -655,10 +599,11 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
             onClick={() => toggleCollapse(section)}
             style={{
               display: "flex", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm,
-              borderBottom: `1px solid ${colors.borderLight}`, paddingBottom: spacing.sm,
+              borderBottom: `1px solid ${colors.borderLight}`,
               cursor: "pointer", userSelect: "none",
-              position: "sticky", top: TOOLBAR_HEIGHT, zIndex: 5,
-              background: colors.bgContent, paddingTop: spacing.sm,
+              position: "sticky", top: 'var(--toolbar-self-h, 48px)', zIndex: 5,
+              background: colors.bgContent,
+              padding: `${spacing.sm}px ${spacing.xxl}px`,
             }}
           >
             <span style={{ fontWeight: 600, fontSize: fontSizes.lg, letterSpacing: "0.01em" }}>
@@ -671,7 +616,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
               {collapsed ? "▶" : "▼"}
             </span>
           </div>
-          {!collapsed && CATEGORIES.map((cat) => {
+          {!collapsed && <div style={{ padding: `0 ${spacing.xxl}px` }}>{CATEGORIES.map((cat) => {
             const catItems = sectionItems.filter((i) => i.category === cat.id);
             const subKey = `${section}:${cat.id}`;
             const subCollapsed = collapsedSections[subKey];
@@ -718,14 +663,14 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
                 {!subCollapsed && renderItems(catItems, section, cat.id)}
               </div>
             );
-          })}
+          })}</div>}
         </div>
       );
     });
 
   const renderByCategory = () =>
     CATEGORIES.map((cat) => {
-      const catItems = searchFilteredItems.filter((i) => i.category === cat.id);
+      const catItems = filteredItems.filter((i) => i.category === cat.id);
       const collapsed = collapsedSections[cat.id];
       const count = getRootItems(catItems).length;
       if (searchQuery.trim() && count === 0 && catItems.length === 0) return null;
@@ -735,10 +680,11 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
             onClick={() => toggleCollapse(cat.id)}
             style={{
               display: "flex", alignItems: "center", gap: spacing.sm, marginBottom: spacing.sm,
-              borderBottom: `2px solid ${cat.color}33`, paddingBottom: spacing.sm,
+              borderBottom: `2px solid ${cat.color}33`,
               cursor: "pointer", userSelect: "none",
-              position: "sticky", top: TOOLBAR_HEIGHT, zIndex: 5,
-              background: colors.bgContent, paddingTop: spacing.sm,
+              position: "sticky", top: 'var(--toolbar-self-h, 48px)', zIndex: 5,
+              background: colors.bgContent,
+              padding: `${spacing.sm}px ${spacing.xxl}px`,
             }}
           >
             <span style={{ fontSize: 18 }}>{cat.icon}</span>
@@ -750,7 +696,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
               {collapsed ? "▶" : "▼"}
             </span>
           </div>
-          {!collapsed && sections.map((section) => {
+          {!collapsed && <div style={{ padding: `0 ${spacing.xxl}px` }}>{sections.map((section) => {
             const sItems = catItems.filter((i) => i.section === section);
             const subKey = `${cat.id}:${section}`;
             const subCollapsed = collapsedSections[subKey];
@@ -781,7 +727,7 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
                 ))}
               </div>
             );
-          })}
+          })}</div>}
         </div>
       );
     });
@@ -793,10 +739,13 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
       lineHeight: 1.6,
       fontSize: fontSizes.base,
     }}>
-      {/* Header */}
-      <div style={{ marginBottom: spacing.xxl }}>
-        <div style={{ marginBottom: spacing.lg }}>
-          <div style={{ fontSize: 24, fontWeight: 700, marginBottom: 2 }}>
+      <div style={{
+        display: 'flex', alignItems: 'flex-start', gap: spacing.md,
+        marginBottom: spacing.lg,
+        padding: `${spacing.xxl}px ${spacing.xxl}px 0`,
+      }}>
+        <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: colors.text, lineHeight: 1.2, marginBottom: 2 }}>
             <EditableText
               value={projectName}
               onChange={setProjectName}
@@ -807,12 +756,217 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
             {new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}
           </div>
         </div>
+        {notesButton && (
+          <div style={{ flexShrink: 0 }}>
+            {notesButton}
+          </div>
+        )}
+      </div>
 
-        {/* Stats cards */}
+      <Toolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        showHidden={showHidden}
+        onShowHiddenChange={setShowHidden}
+      >
+        {itemsWithContent.size > 0 && (
+          <button
+            onClick={toggleAllDetails}
+            title={allDetailsOpen ? 'Close all details' : 'Open all details'}
+            style={{
+              width: 28, height: 28,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              background: allDetailsOpen ? colors.blueBg : 'transparent',
+              color: allDetailsOpen ? colors.blue : colors.textMuted,
+              border: `1px solid ${allDetailsOpen ? colors.blueBorder : colors.border}`,
+              borderRadius: radii.md, cursor: 'pointer',
+              transition: transitions.fast,
+            }}
+          >
+            <Paperclip size={14} weight="regular" />
+          </button>
+        )}
+
+        {parentIds.size > 0 && (
+          <button
+            onClick={toggleAllChildren}
+            title={allChildrenExpanded ? 'Collapse children' : 'Expand children'}
+            style={{
+              width: 28, height: 28,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              background: allChildrenExpanded ? colors.blueBg : 'transparent',
+              color: allChildrenExpanded ? colors.blue : colors.textMuted,
+              border: `1px solid ${allChildrenExpanded ? colors.blueBorder : colors.border}`,
+              borderRadius: radii.md, cursor: 'pointer',
+              transition: transitions.fast,
+            }}
+          >
+            {allChildrenExpanded ? <ChevronDown size={14} weight="bold" /> : <ChevronRight size={14} weight="bold" />}
+          </button>
+        )}
+
+        <span style={{ position: 'relative', display: 'inline-flex' }}>
+          <button
+            onClick={() => setSectionsOpen(v => !v)}
+            title="Manage sections"
+            style={{
+              height: 28,
+              padding: `0 ${spacing.md}px`,
+              fontSize: fontSizes.sm, fontFamily: fonts.body,
+              background: sectionsOpen ? colors.surface3 : 'transparent',
+              color: sectionsOpen ? colors.text : colors.textMuted,
+              border: `1px solid ${colors.border}`,
+              borderRadius: radii.md, cursor: 'pointer',
+              transition: transitions.fast,
+              display: 'inline-flex', alignItems: 'center', gap: spacing.xs,
+            }}
+          >
+            <FolderSimple size={14} weight="regular" />
+            Sections
+            {sectionsOpen ? <ChevronUp size={14} weight="bold" /> : <ChevronDown size={14} weight="bold" />}
+          </button>
+          {sectionsOpen && (
+            <div ref={sectionsMenuRef} style={{
+              position: 'absolute', right: 0, top: '100%', marginTop: 4,
+              background: colors.bgSurface, border: `1px solid ${colors.border}`,
+              borderRadius: radii.lg, padding: spacing.xs,
+              zIndex: 30, boxShadow: shadows.md, minWidth: 240,
+            }}>
+              {sections.map((s) => {
+                const itemCount = items.filter(i => i.section === s).length;
+                const isRenaming = renamingSection === s;
+                return (
+                  <div key={s} style={{
+                    display: 'flex', alignItems: 'center', gap: spacing.xs,
+                    padding: `${spacing.xs + 2}px ${spacing.sm}px`,
+                    borderRadius: radii.sm,
+                  }}
+                    onMouseEnter={e => { if (!isRenaming) e.currentTarget.style.background = colors.surface2; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}
+                  >
+                    {isRenaming ? (
+                      <input
+                        autoFocus
+                        defaultValue={s}
+                        onBlur={(e) => { renameSection(s, e.target.value); setRenamingSection(null); }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { renameSection(s, (e.target as HTMLInputElement).value); setRenamingSection(null); }
+                          if (e.key === 'Escape') setRenamingSection(null);
+                        }}
+                        style={{ ...inputStyle, fontSize: fontSizes.sm, flex: 1, padding: '2px 8px' }}
+                      />
+                    ) : (
+                      <>
+                        <span style={{ flex: 1, fontSize: fontSizes.sm, color: colors.textSecondary }}>{s}</span>
+                        <span style={{ fontSize: fontSizes.xs, color: colors.textMuted, fontFamily: fonts.mono }}>
+                          {itemCount}
+                        </span>
+                        <button
+                          onClick={() => setRenamingSection(s)}
+                          title="Rename"
+                          style={{
+                            background: 'none', border: 'none', color: colors.textMuted,
+                            cursor: 'pointer', padding: '2px 4px',
+                            display: 'inline-flex', alignItems: 'center',
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.color = colors.text}
+                          onMouseLeave={e => e.currentTarget.style.color = colors.textMuted}
+                        >
+                          <Pencil size={14} weight="regular" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            const msg = itemCount > 0
+                              ? `Delete section "${s}"? Its ${itemCount} item${itemCount > 1 ? 's' : ''} will be moved.`
+                              : `Delete section "${s}"?`;
+                            if (window.confirm(msg)) removeSection(s);
+                          }}
+                          disabled={sections.length <= 1}
+                          title={sections.length <= 1 ? 'Cannot delete last section' : 'Delete'}
+                          style={{
+                            background: 'none', border: 'none',
+                            color: sections.length <= 1 ? colors.dimmed : colors.textMuted,
+                            cursor: sections.length <= 1 ? 'not-allowed' : 'pointer',
+                            padding: '2px 4px',
+                            display: 'inline-flex', alignItems: 'center',
+                          }}
+                          onMouseEnter={e => { if (sections.length > 1) e.currentTarget.style.color = colors.red; }}
+                          onMouseLeave={e => e.currentTarget.style.color = sections.length <= 1 ? colors.dimmed : colors.textMuted}
+                        >
+                          <X size={14} weight="bold" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+
+              <div style={{ height: 1, background: colors.borderLight, margin: `${spacing.xs}px 0` }} />
+
+              {addingSectionOpen ? (
+                <div style={{ display: 'flex', gap: spacing.xs, padding: `${spacing.xs}px ${spacing.sm}px` }}>
+                  <input
+                    autoFocus
+                    value={newSection}
+                    onChange={(e) => setNewSection(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") addSection();
+                      if (e.key === "Escape") { setAddingSectionOpen(false); setNewSection(""); }
+                    }}
+                    placeholder="New section"
+                    style={{ ...inputStyle, fontSize: fontSizes.sm, flex: 1, padding: "3px 8px" }}
+                  />
+                  <button onClick={addSection} style={{ ...buttonPrimaryStyle, padding: "3px 10px" }}>
+                    OK
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingSectionOpen(true)}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    background: 'none', border: 'none', color: colors.textSecondary,
+                    cursor: 'pointer', padding: `${spacing.xs + 2}px ${spacing.sm}px`,
+                    fontSize: fontSizes.sm, borderRadius: radii.sm,
+                    fontFamily: fonts.body, transition: transitions.fast,
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                >
+                  + Add section
+                </button>
+              )}
+            </div>
+          )}
+        </span>
+
         <div style={{
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-          gap: spacing.sm, marginBottom: spacing.md,
+          display: 'inline-flex', height: 28, borderRadius: radii.md, overflow: 'hidden',
+          border: `1px solid ${colors.border}`,
         }}>
+          {([{ id: 'bySection' as const, label: 'Sections' }, { id: 'byCategory' as const, label: 'Categories' }]).map(v => (
+            <button
+              key={v.id}
+              onClick={() => setViewMode(v.id)}
+              style={{
+                padding: `0 ${spacing.md}px`,
+                fontSize: fontSizes.sm, fontFamily: fonts.body,
+                background: viewMode === v.id ? colors.surface3 : 'transparent',
+                color: viewMode === v.id ? colors.text : colors.textMuted,
+                border: 'none', cursor: 'pointer',
+                transition: transitions.fast,
+              }}
+            >{v.label}</button>
+          ))}
+        </div>
+      </Toolbar>
+
+      {/* Stats cards */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+        gap: spacing.sm, marginTop: spacing.md, marginBottom: spacing.md,
+        padding: `0 ${spacing.xxl}px`,
+      }}>
           <div style={{
             background: colors.surfaceStats, borderRadius: radii.lg,
             padding: `${spacing.md}px ${spacing.lg}px`,
@@ -902,229 +1056,13 @@ export default function ProjectView({ project, onSave }: ProjectViewProps) {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Section pills */}
-      <div style={{ display: "flex", gap: spacing.sm, marginBottom: spacing.md, flexWrap: "wrap", alignItems: "center" }}>
-        {sections.map((s) => (
-          <span key={s} style={{ position: 'relative', display: 'inline-flex' }}>
-            {renamingSection === s ? (
-              <input
-                autoFocus
-                defaultValue={s}
-                onBlur={(e) => { renameSection(s, e.target.value); setRenamingSection(null); }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { renameSection(s, (e.target as HTMLInputElement).value); setRenamingSection(null); }
-                  if (e.key === 'Escape') setRenamingSection(null);
-                }}
-                style={{ ...inputStyle, fontSize: fontSizes.sm, width: 130, padding: "2px 8px" }}
-              />
-            ) : (
-              <button
-                onClick={() => setSectionMenu(sectionMenu === s ? null : s)}
-                style={{
-                  background: colors.surface2, borderRadius: radii.sm,
-                  padding: `2px ${spacing.sm}px`, fontSize: fontSizes.sm, color: colors.textSecondary,
-                  border: sectionMenu === s ? `1px solid ${colors.border}` : '1px solid transparent',
-                  cursor: 'pointer', fontFamily: fonts.body, transition: transitions.fast,
-                }}
-                onMouseEnter={e => e.currentTarget.style.borderColor = colors.border}
-                onMouseLeave={e => { if (sectionMenu !== s) e.currentTarget.style.borderColor = 'transparent'; }}
-              >
-                {s}
-              </button>
-            )}
-            {sectionMenu === s && (
-              <div ref={sectionMenuRef} style={{
-                position: 'absolute', left: 0, top: '100%', marginTop: 4,
-                background: colors.bgSurface, border: `1px solid ${colors.border}`,
-                borderRadius: radii.lg, padding: spacing.xs,
-                zIndex: 30, boxShadow: shadows.md, minWidth: 150,
-              }}>
-                <button
-                  onClick={() => { setSectionMenu(null); setRenamingSection(s); }}
-                  style={{
-                    display: 'block', width: '100%', textAlign: 'left',
-                    background: 'none', border: 'none', color: colors.textSecondary,
-                    cursor: 'pointer', padding: `${spacing.xs + 2}px ${spacing.md}px`,
-                    fontSize: fontSizes.sm, borderRadius: radii.sm,
-                    fontFamily: fonts.body, transition: transitions.fast,
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = colors.surface2}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                >
-                  Rename
-                </button>
-                <button
-                  onClick={() => {
-                    setSectionMenu(null);
-                    const count = items.filter(i => i.section === s).length;
-                    const msg = count > 0
-                      ? `Delete section "${s}"? Its ${count} item${count > 1 ? 's' : ''} will be moved.`
-                      : `Delete section "${s}"?`;
-                    if (window.confirm(msg)) removeSection(s);
-                  }}
-                  disabled={sections.length <= 1}
-                  style={{
-                    display: 'block', width: '100%', textAlign: 'left',
-                    background: 'none', border: 'none',
-                    color: sections.length <= 1 ? colors.dimmed : colors.red,
-                    cursor: sections.length <= 1 ? 'not-allowed' : 'pointer',
-                    padding: `${spacing.xs + 2}px ${spacing.md}px`,
-                    fontSize: fontSizes.sm, borderRadius: radii.sm,
-                    fontFamily: fonts.body, transition: transitions.fast,
-                  }}
-                  onMouseEnter={e => { if (sections.length > 1) e.currentTarget.style.background = colors.surface2; }}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                >
-                  Delete
-                </button>
-              </div>
-            )}
-          </span>
-        ))}
-        {addingSectionOpen ? (
-          <span style={{ display: "inline-flex", gap: spacing.xs }}>
-            <input
-              autoFocus
-              value={newSection}
-              onChange={(e) => setNewSection(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") addSection(); if (e.key === "Escape") setAddingSectionOpen(false); }}
-              placeholder="New section"
-              style={{ ...inputStyle, fontSize: fontSizes.sm, width: 130, padding: "3px 8px" }}
-            />
-            <button onClick={addSection} style={{ ...buttonPrimaryStyle, padding: "3px 10px" }}>
-              OK
-            </button>
-          </span>
-        ) : (
-          <button onClick={() => setAddingSectionOpen(true)} style={{
-            ...buttonDashedStyle, width: 'auto', padding: "2px 10px", fontSize: fontSizes.sm,
-          }}>+ Section</button>
-        )}
-      </div>
-
-      {/* Sticky toolbar */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 10,
-        background: colors.bgContent,
-        borderBottom: `1px solid ${colors.borderLight}`,
-        padding: `${spacing.sm}px 0`,
-        marginBottom: spacing.md,
-        display: 'flex', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap',
-      }}>
-        {/* Search */}
-        <div style={{ position: 'relative', flex: '1 1 180px', maxWidth: 320 }}>
-          <span style={{
-            position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
-            color: colors.textMuted, fontSize: fontSizes.sm, pointerEvents: 'none',
-          }}>🔍</span>
-          <input
-            ref={searchInputRef}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={`Search items… (${navigator.platform?.includes('Mac') ? '⌘' : 'Ctrl'}+K)`}
-            style={{
-              ...inputStyle,
-              fontSize: fontSizes.sm,
-              padding: '5px 8px 5px 28px',
-              width: '100%',
-            }}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              style={{
-                position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', color: colors.textMuted,
-                cursor: 'pointer', fontSize: fontSizes.sm, padding: '2px 4px',
-              }}
-            >✕</button>
-          )}
-        </div>
-
-        <span style={{ flex: 1 }} />
-
-        {/* Expand/collapse buttons */}
-        {itemsWithContent.size > 0 && (
-          <button
-            onClick={toggleAllDetails}
-            style={{
-              padding: `3px ${spacing.sm}px`,
-              fontSize: fontSizes.sm, fontFamily: fonts.body,
-              background: 'transparent',
-              color: colors.textMuted,
-              border: `1px solid ${colors.border}`,
-              borderRadius: radii.md, cursor: 'pointer',
-              transition: transitions.fast,
-            }}
-            title={allDetailsOpen ? 'Close all details' : 'Open all details'}
-          >
-            {allDetailsOpen ? '📎 Close all' : '📎 Open all'}
-          </button>
-        )}
-
-        {parentIds.size > 0 && (
-          <button
-            onClick={toggleAllChildren}
-            style={{
-              padding: `3px ${spacing.sm}px`,
-              fontSize: fontSizes.sm, fontFamily: fonts.body,
-              background: 'transparent',
-              color: colors.textMuted,
-              border: `1px solid ${colors.border}`,
-              borderRadius: radii.md, cursor: 'pointer',
-              transition: transitions.fast,
-            }}
-            title={allChildrenExpanded ? 'Collapse children' : 'Expand children'}
-          >
-            {allChildrenExpanded ? '▼ Collapse' : '▶ Expand'}
-          </button>
-        )}
-
-        {/* View mode toggle */}
-        <div style={{
-          display: 'inline-flex', borderRadius: radii.md, overflow: 'hidden',
-          border: `1px solid ${colors.border}`,
-        }}>
-          {([{ id: 'bySection' as const, label: 'Sections' }, { id: 'byCategory' as const, label: 'Categories' }]).map(v => (
-            <button
-              key={v.id}
-              onClick={() => setViewMode(v.id)}
-              style={{
-                padding: `3px ${spacing.md}px`,
-                fontSize: fontSizes.sm, fontFamily: fonts.body,
-                background: viewMode === v.id ? colors.surface3 : 'transparent',
-                color: viewMode === v.id ? colors.text : colors.textMuted,
-                border: 'none', cursor: 'pointer',
-                transition: transitions.fast,
-              }}
-            >{v.label}</button>
-          ))}
-        </div>
-
-        {/* Show closed toggle */}
-        <button
-          onClick={() => setShowHidden(!showHidden)}
-          style={{
-            padding: `3px ${spacing.md}px`,
-            fontSize: fontSizes.sm, fontFamily: fonts.body,
-            background: showHidden ? colors.blueBg : 'transparent',
-            color: showHidden ? colors.blue : colors.textMuted,
-            border: `1px solid ${showHidden ? colors.blueBorder : colors.border}`,
-            borderRadius: radii.md, cursor: 'pointer',
-            transition: transitions.fast,
-          }}
-        >
-          {showHidden ? 'Showing closed' : 'Show closed'}
-        </button>
-      </div>
 
       {viewMode === "bySection" ? renderBySection() : renderByCategory()}
 
       <div style={{
         marginTop: 32, paddingTop: spacing.lg, borderTop: `1px solid ${colors.borderLight}`,
         display: "flex", gap: spacing.sm, justifyContent: "flex-end",
+        paddingInline: spacing.xxl,
       }}>
         <button onClick={handleImport} style={buttonStyle}>
           📥 Import JSON

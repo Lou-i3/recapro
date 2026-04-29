@@ -22,6 +22,28 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
   if (loading) return <div style={{ color: colors.textMuted }}>Loading…</div>;
   if (!data) return <div style={{ color: colors.red }}>Project not found</div>;
 
+  const notesButton = (
+    <button
+      onClick={() => setNotesVisible(v => !v)}
+      title={notesVisible ? 'Hide notes' : 'Show notes'}
+      style={{
+        background: colors.surface3,
+        border: `1px solid ${colors.border}`,
+        borderRadius: radii.sm,
+        color: notesVisible ? colors.textSecondary : colors.textMuted,
+        cursor: 'pointer',
+        padding: `${spacing.xs}px ${spacing.sm}px`,
+        fontSize: fontSizes.sm,
+        fontFamily: fonts.mono,
+        transition: 'color 0.15s ease',
+      }}
+      onMouseEnter={e => e.currentTarget.style.color = colors.text}
+      onMouseLeave={e => e.currentTarget.style.color = notesVisible ? colors.textSecondary : colors.textMuted}
+    >
+      {notesVisible ? 'Notes ✕' : 'Notes ▸'}
+    </button>
+  );
+
   return (
     <div style={{
       display: 'flex',
@@ -29,8 +51,8 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
       position: 'relative',
       overflow: 'hidden',
     }}>
-      <div style={{ flex: 1, overflow: 'auto', padding: spacing.xxl, minWidth: 0, background: colors.bgContent }}>
-        <ProjectView project={data} onSave={save} />
+      <div style={{ flex: 1, overflow: 'auto', paddingBottom: spacing.xxl, minWidth: 0, background: colors.bgContent }}>
+        <ProjectView project={data} onSave={save} notesButton={notesButton} />
       </div>
 
       {notesVisible ? (
@@ -41,30 +63,6 @@ export default function ProjectPage({ params }: { params: Promise<{ slug: string
           onResize={setNotesWidth}
         />
       ) : null}
-
-      <button
-        onClick={() => setNotesVisible(v => !v)}
-        title={notesVisible ? 'Hide notes' : 'Show notes'}
-        style={{
-          position: 'absolute',
-          top: spacing.sm,
-          right: notesVisible ? notesWidth + spacing.sm : spacing.sm,
-          background: colors.surface3,
-          border: `1px solid ${colors.border}`,
-          borderRadius: radii.sm,
-          color: notesVisible ? colors.textSecondary : colors.textMuted,
-          cursor: 'pointer',
-          padding: `${spacing.xs}px ${spacing.sm}px`,
-          fontSize: fontSizes.sm,
-          fontFamily: fonts.mono,
-          transition: 'right 0.15s ease, color 0.15s ease',
-          zIndex: 5,
-        }}
-        onMouseEnter={e => e.currentTarget.style.color = colors.text}
-        onMouseLeave={e => e.currentTarget.style.color = notesVisible ? colors.textSecondary : colors.textMuted}
-      >
-        {notesVisible ? 'Notes ✕' : 'Notes ▸'}
-      </button>
     </div>
   );
 }
