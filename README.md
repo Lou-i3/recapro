@@ -75,3 +75,4 @@ src/
 - [ ] **Auto-suggest decisions** — propose creating a decision when a question is marked as answered
 - [ ] **Replace priority glyphs** — priorities still use unicode shapes (▲◆▽) on `PriorityDot`; could swap to Phosphor icons for visual consistency with the rest of the UI
 - [ ] **Collapse/expand state persistence** — remember collapsed sections across sessions
+- [ ] **Item history** — track changes to items with timestamps
