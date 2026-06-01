@@ -21,6 +21,15 @@ interface ProjectViewProps {
 
 export default function ProjectView({ project, onSave, notesButton }: ProjectViewProps) {
   const { projectName, sections, items } = project;
+  const projectDateLabel = useMemo(() => {
+    if (!project.updatedAt) return null;
+    return new Date(project.updatedAt).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  }, [project.updatedAt]);
 
   // Always keep a ref to the latest items to avoid stale closure bugs in callbacks
   const latestItemsRef = useRef<Item[]>(items);
@@ -759,7 +768,7 @@ export default function ProjectView({ project, onSave, notesButton }: ProjectVie
             />
           </div>
           <div style={{ ...labelStyle, fontSize: fontSizes.xs }}>
-            {new Date().toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}
+            {projectDateLabel}
           </div>
         </div>
         {notesButton && (

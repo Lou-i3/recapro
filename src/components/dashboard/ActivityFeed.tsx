@@ -34,7 +34,7 @@ export default function ActivityFeed({ projects }: ActivityFeedProps) {
         const isTerminal = COMPLETED_STATUSES.has(item.status);
         const statusDef = (STATUS_BY_CATEGORY[item.category] || []).find(s => s.id === item.status);
         const date = item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
+          ? new Date(item.createdAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', timeZone: 'UTC' })
           : '';
         return (
           <Link
